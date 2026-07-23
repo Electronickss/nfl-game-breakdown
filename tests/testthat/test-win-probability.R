@@ -283,7 +283,10 @@ test_that("main creates data directory with interpolated year, not literal strin
   old_wd <- getwd()
   on.exit(setwd(old_wd), add = TRUE)
 
-  project_root <- normalizePath(file.path(old_wd, "..", ".."))
+  project_root <- getwd()
+  while (!file.exists(file.path(project_root, "DESCRIPTION")) && project_root != dirname(project_root)) {
+    project_root <- dirname(project_root)
+  }
   setwd(project_root)
   TESTING <- TRUE
   source(file.path(project_root, "scripts/win-probability.R"), local = environment())

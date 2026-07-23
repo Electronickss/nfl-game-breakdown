@@ -1,4 +1,4 @@
-if (!interactive()) {
+if (!interactive() && !exists("TESTING")) {
   options(show.error.locations = TRUE)
   options(nflreadr.cache = "filesystem")
   library(nflfastR)
