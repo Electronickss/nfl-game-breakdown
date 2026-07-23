@@ -54,7 +54,7 @@ load_data_and_build <- function(start_year, end_year) {
     ) |>
     filter(winner != "TIE", !is.na(poswins)) |>
     select(
-      game_id, game_date, posteam, poswins, home_team, away_team, winner,
+      game_id, game_date, week, posteam, poswins, home_team, away_team, winner,
       qtr, down, ydstogo, game_seconds_remaining, yardline_100,
       score_differential, defteam_timeouts_remaining, posteam_timeouts_remaining,
       home_scoring_play, away_scoring_play, home_turnover_play, away_turnover_play,

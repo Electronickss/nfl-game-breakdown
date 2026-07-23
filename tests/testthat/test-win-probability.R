@@ -190,13 +190,13 @@ test_that("load_logos calls teams_colors_logos", {
 
 test_that("load_data_and_build processes mock data end-to-end", {
   mock_pbp <- tibble::tribble(
-    ~game_id, ~game_date, ~posteam, ~home_team, ~away_team, ~qtr, ~down, ~ydstogo, ~game_seconds_remaining, ~yardline_100, ~score_differential, ~defteam_timeouts_remaining, ~posteam_timeouts_remaining, ~play_type, ~field_goal_result, ~td_team, ~safety, ~penalty_team, ~first_down_penalty, ~interception, ~fumble_lost, ~home_score, ~away_score, ~vegas_home_wp, ~wp, ~replay_or_challenge, ~td_player_name,
-    "2024_01_KC_BAL", "2024-09-05", "KC", "BAL", "KC", 1, 1, 10, 3500, 75, 0, 3, 3, "pass", NA, NA, 0, NA, 0, 0, 0, 24, 17, 0.55, 0.55, NA, NA,
-    "2024_01_KC_BAL", "2024-09-05", "BAL", "BAL", "KC", 1, 2, 7, 3400, 60, 7, 3, 3, "pass", NA, NA, 0, NA, 0, 0, 0, 24, 17, 0.65, 0.65, NA, NA,
-    "2024_01_KC_BAL", "2024-09-05", "KC", "BAL", "KC", 2, 1, 10, 1800, 50, -7, 2, 3, "extra_point", NA, NA, 0, NA, 0, 0, 0, 24, 17, 0.45, 0.45, NA, NA,
-    "2024_01_KC_BAL", "2024-09-05", "BAL", "BAL", "KC", 3, 1, 10, 900, 30, 0, 2, 2, "field_goal", "made", NA, 0, NA, 0, 0, 0, 24, 17, 0.50, 0.50, NA, NA,
-    "2024_01_KC_BAL", "2024-09-05", "KC", "BAL", "KC", 4, 1, 10, 100, 20, -3, 1, 2, "pass", NA, NA, 0, NA, 0, 1, 0, 24, 17, 0.30, 0.30, NA, NA,
-    "2024_01_KC_BAL", "2024-09-05", "BAL", "BAL", "KC", 4, 2, 5, 50, 15, 3, 1, 1, "rush", NA, NA, 0, NA, 0, 0, 0, 24, 17, 0.90, 0.90, NA, NA
+    ~game_id, ~game_date, ~week, ~posteam, ~home_team, ~away_team, ~qtr, ~down, ~ydstogo, ~game_seconds_remaining, ~yardline_100, ~score_differential, ~defteam_timeouts_remaining, ~posteam_timeouts_remaining, ~play_type, ~field_goal_result, ~td_team, ~safety, ~penalty_team, ~first_down_penalty, ~interception, ~fumble_lost, ~home_score, ~away_score, ~vegas_home_wp, ~wp, ~replay_or_challenge, ~td_player_name,
+    "2024_01_KC_BAL", "2024-09-05", 1, "KC", "BAL", "KC", 1, 1, 10, 3500, 75, 0, 3, 3, "pass", NA, NA, 0, NA, 0, 0, 0, 24, 17, 0.55, 0.55, NA, NA,
+    "2024_01_KC_BAL", "2024-09-05", 1, "BAL", "BAL", "KC", 1, 2, 7, 3400, 60, 7, 3, 3, "pass", NA, NA, 0, NA, 0, 0, 0, 24, 17, 0.65, 0.65, NA, NA,
+    "2024_01_KC_BAL", "2024-09-05", 1, "KC", "BAL", "KC", 2, 1, 10, 1800, 50, -7, 2, 3, "extra_point", NA, NA, 0, NA, 0, 0, 0, 24, 17, 0.45, 0.45, NA, NA,
+    "2024_01_KC_BAL", "2024-09-05", 1, "BAL", "BAL", "KC", 3, 1, 10, 900, 30, 0, 2, 2, "field_goal", "made", NA, 0, NA, 0, 0, 0, 24, 17, 0.50, 0.50, NA, NA,
+    "2024_01_KC_BAL", "2024-09-05", 1, "KC", "BAL", "KC", 4, 1, 10, 100, 20, -3, 1, 2, "pass", NA, NA, 0, NA, 0, 1, 0, 24, 17, 0.30, 0.30, NA, NA,
+    "2024_01_KC_BAL", "2024-09-05", 1, "BAL", "BAL", "KC", 4, 2, 5, 50, 15, 3, 1, 1, "rush", NA, NA, 0, NA, 0, 0, 0, 24, 17, 0.90, 0.90, NA, NA
   )
 
   mock_logos <- tibble::tribble(
@@ -231,8 +231,8 @@ test_that("load_data_and_build processes mock data end-to-end", {
 
 test_that("load_data_and_build filters out TIE games", {
   mock_pbp <- tibble::tribble(
-    ~game_id, ~game_date, ~posteam, ~home_team, ~away_team, ~qtr, ~down, ~ydstogo, ~game_seconds_remaining, ~yardline_100, ~score_differential, ~defteam_timeouts_remaining, ~posteam_timeouts_remaining, ~play_type, ~field_goal_result, ~td_team, ~safety, ~penalty_team, ~first_down_penalty, ~interception, ~fumble_lost, ~home_score, ~away_score, ~vegas_home_wp, ~wp, ~replay_or_challenge, ~td_player_name,
-    "2024_01_KC_BAL", "2024-09-05", "KC", "BAL", "KC", 4, 1, 10, 10, 50, 0, 3, 3, "pass", NA, NA, 0, NA, 0, 0, 0, 14, 14, 0.50, 0.50, NA, NA
+    ~game_id, ~game_date, ~week, ~posteam, ~home_team, ~away_team, ~qtr, ~down, ~ydstogo, ~game_seconds_remaining, ~yardline_100, ~score_differential, ~defteam_timeouts_remaining, ~posteam_timeouts_remaining, ~play_type, ~field_goal_result, ~td_team, ~safety, ~penalty_team, ~first_down_penalty, ~interception, ~fumble_lost, ~home_score, ~away_score, ~vegas_home_wp, ~wp, ~replay_or_challenge, ~td_player_name,
+    "2024_01_KC_BAL", "2024-09-05", 1, "KC", "BAL", "KC", 4, 1, 10, 10, 50, 0, 3, 3, "pass", NA, NA, 0, NA, 0, 0, 0, 14, 14, 0.50, 0.50, NA, NA
   )
   mock_logos <- tibble::tribble(~team_abbr, ~team_logo_espn, ~team_color, "KC", "x", "#E31837", "BAL", "x", "#241773")
 
@@ -251,11 +251,11 @@ test_that("load_data_and_build filters out TIE games", {
 
 test_that("load_data_and_build handles NA filter columns", {
   mock_pbp <- tibble::tribble(
-    ~game_id, ~game_date, ~posteam, ~home_team, ~away_team, ~qtr, ~down, ~ydstogo, ~game_seconds_remaining, ~yardline_100, ~score_differential, ~defteam_timeouts_remaining, ~posteam_timeouts_remaining, ~play_type, ~field_goal_result, ~td_team, ~safety, ~penalty_team, ~first_down_penalty, ~interception, ~fumble_lost, ~home_score, ~away_score, ~vegas_home_wp, ~wp, ~replay_or_challenge, ~td_player_name,
-    "2024_01_KC_BAL", "2024-09-05", "KC", "BAL", "KC", 1, NA, 10, 3500, 75, 0, 3, 3, "pass", NA, NA, 0, NA, 0, 0, 0, 24, 17, 0.55, 0.55, NA, NA,
-    "2024_01_KC_BAL", "2024-09-05", "BAL", "BAL", "KC", 1, 2, 7, 3400, NA, 7, 3, 3, "pass", NA, NA, 0, NA, 0, 0, 0, 24, 17, 0.65, 0.65, NA, NA,
-    "2024_01_KC_BAL", "2024-09-05", "KC", "BAL", "KC", 5, 1, 10, 1800, 50, -7, NA, 3, "pass", NA, NA, 0, NA, 0, 0, 0, 24, 17, 0.45, 0.45, NA, NA,
-    "2024_01_KC_BAL", "2024-09-05", "BAL", "BAL", "KC", 3, 1, 10, 900, 30, 0, 2, 2, NA, NA, NA, 0, NA, 0, 0, 0, 24, 17, 0.50, 0.50, NA, NA
+    ~game_id, ~game_date, ~week, ~posteam, ~home_team, ~away_team, ~qtr, ~down, ~ydstogo, ~game_seconds_remaining, ~yardline_100, ~score_differential, ~defteam_timeouts_remaining, ~posteam_timeouts_remaining, ~play_type, ~field_goal_result, ~td_team, ~safety, ~penalty_team, ~first_down_penalty, ~interception, ~fumble_lost, ~home_score, ~away_score, ~vegas_home_wp, ~wp, ~replay_or_challenge, ~td_player_name,
+    "2024_01_KC_BAL", "2024-09-05", 1, "KC", "BAL", "KC", 1, NA, 10, 3500, 75, 0, 3, 3, "pass", NA, NA, 0, NA, 0, 0, 0, 24, 17, 0.55, 0.55, NA, NA,
+    "2024_01_KC_BAL", "2024-09-05", 1, "BAL", "BAL", "KC", 1, 2, 7, 3400, NA, 7, 3, 3, "pass", NA, NA, 0, NA, 0, 0, 0, 24, 17, 0.65, 0.65, NA, NA,
+    "2024_01_KC_BAL", "2024-09-05", 1, "KC", "BAL", "KC", 5, 1, 10, 1800, 50, -7, NA, 3, "pass", NA, NA, 0, NA, 0, 0, 0, 24, 17, 0.45, 0.45, NA, NA,
+    "2024_01_KC_BAL", "2024-09-05", 1, "BAL", "BAL", "KC", 3, 1, 10, 900, 30, 0, 2, 2, NA, NA, NA, 0, NA, 0, 0, 0, 24, 17, 0.50, 0.50, NA, NA
   )
   mock_logos <- tibble::tribble(~team_abbr, ~team_logo_espn, ~team_color, "KC", "x", "#E31837", "BAL", "x", "#241773")
 
