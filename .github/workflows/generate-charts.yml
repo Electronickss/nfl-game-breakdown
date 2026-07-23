@@ -33,7 +33,11 @@ jobs:
           r-version: '4.3.1'
 
       - name: Install dependencies
-        run: Rscript -e 'install.packages(c("nflfastR", "tidyverse", "scales", "ggimage", "lubridate"))'
+        run: |
+          Rscript -e '
+          options(repos = c(CRAN = "https://cloud.r-project.org"))
+          install.packages(c("nflfastR", "tidyverse", "scales", "ggimage", "lubridate"))
+         '
 
       - name: Generate win probability charts
         run: Rscript scripts/win-probability.R
