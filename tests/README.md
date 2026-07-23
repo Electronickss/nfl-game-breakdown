@@ -1,6 +1,6 @@
 # Tests
 
-testthat test suite with 99% coverage enforcement.
+testthat test suite with 95% coverage enforcement (aim for 100% when possible).
 
 ## Running
 

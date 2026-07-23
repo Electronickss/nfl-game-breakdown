@@ -39,7 +39,9 @@ jobs:
           use-public-rspm: true
 
       - name: Install system dependencies
-        run: sudo apt-get install -y libmagick++-dev
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libmagick++-dev libcurl4-openssl-dev libuv1-dev
 
       - name: Cache R packages
         uses: actions/cache@v4
