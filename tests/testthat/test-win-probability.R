@@ -118,6 +118,26 @@ test_that("plot_win_probability returns a ggplot object", {
   expect_s3_class(p, "ggplot")
 })
 
+test_that("plot_win_probability covers ggimage branch", {
+  game_data <- make_mock_game()
+  logos <- make_mock_logos()
+
+  has_ggimage_orig <- has_ggimage
+  has_ggimage <<- function() TRUE
+  on.exit(has_ggimage <<- has_ggimage_orig, add = TRUE)
+
+  geom_image_orig <- if (exists("geom_image")) geom_image else NULL
+  geom_image <- function(...) ggplot2::geom_blank()
+  assign("geom_image", geom_image, envir = globalenv())
+  on.exit({
+    if (!is.null(geom_image_orig)) geom_image <<- geom_image_orig
+    else rm("geom_image", envir = globalenv())
+  }, add = TRUE)
+
+  p <- plot_win_probability(game_data, logos)
+  expect_s3_class(p, "ggplot")
+})
+
 test_that("load_data wraps load_pbp correctly", {
   # Just test that the function exists and is callable
   expect_true(is.function(load_data))
