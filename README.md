@@ -24,7 +24,7 @@ Run manually from the Actions tab with these inputs:
 
 ```r
 # Install dependencies
-install.packages(c("nflfastR", "tidyverse", "scales", "ggimage", "lubridate", "gghighcontrast"))
+install.packages(c("nflfastR", "tidyverse", "scales", "ggimage", "lubridate"))
 
 # Generate win probability charts
 source("scripts/win-probability.R")

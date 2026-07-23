@@ -42,7 +42,7 @@ Main script with these functions:
 - Uploads all charts as artifacts
 
 ## Key Dependencies
-- nflfastR, nflreadr, tidyverse, scales, ggimage, gghighcontrast, lubridate
+- nflfastR, nflreadr, tidyverse, scales, ggimage, lubridate
 - R 4.3.1
 
 ## TODO / Next Steps
