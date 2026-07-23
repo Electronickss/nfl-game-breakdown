@@ -148,8 +148,14 @@ plot_win_probability <- function(data, logos, foreground_color = rich_black, bac
     geom_rug(data = filter(data, home_turnover_play == 1), color = red, sides = "b", linewidth = 1.0) +
     geom_rug(data = filter(data, away_turnover_play == 1), color = red, sides = "t", linewidth = 1.0) +
     geom_rug(data = filter(data, home_penalty == 1), color = yellow, sides = "t", linewidth = 0.5) +
-    geom_rug(data = filter(data, away_penalty == 1), color = yellow, sides = "b", linewidth = 0.5) +
-    geom_image(data = logo_placement_data, aes(x = x, y = y, image = team_logo_espn), size = 0.08, asp = 16 / 9) +
+    geom_rug(data = filter(data, away_penalty == 1), color = yellow, sides = "b", linewidth = 0.5)
+
+  if (requireNamespace("ggimage", quietly = TRUE)) {
+    plot <- plot +
+      geom_image(data = logo_placement_data, aes(x = x, y = y, image = team_logo_espn), size = 0.08, asp = 16 / 9)
+  }
+
+  plot <- plot +
     scale_x_reverse() +
     scale_y_continuous(labels = percent, limits = c(0, 1)) +
     theme_high_contrast(base_family = "Helvetica", background_color = background_color, foreground_color = foreground_color) +

@@ -45,9 +45,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ env.R_LIBS_USER }}
-          key: r-packages-${{ runner.os }}-${{ hashFiles('.github/workflows/fantasy-stats.yml') }}
+          key: r-packages-${{ runner.os }}-fs-${{ hashFiles('.github/workflows/fantasy-stats.yml') }}
           restore-keys: |
-            r-packages-${{ runner.os }}-
+            r-packages-${{ runner.os }}-fs-
 
       - name: Install dependencies
         run: |
