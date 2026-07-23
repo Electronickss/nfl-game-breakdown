@@ -30,3 +30,11 @@ add_version_watermark <- function(plot, version) {
       size = 2, color = grey, alpha = 0.5
     )
 }
+
+format_week_label <- function(week) {
+  if (week == 19) "Wild Card Round"
+  else if (week == 20) "Divisional Round"
+  else if (week == 21) "Conference Championship"
+  else if (week == 22) "Super Bowl"
+  else glue("Week {week}")
+}

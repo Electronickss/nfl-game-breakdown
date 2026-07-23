@@ -82,10 +82,11 @@ plot_team_summary <- function(team_stats, team, week, year) {
   is_home <- team_stats$is_home
 
   home_away <- ifelse(is_home, "vs", "@")
+  week_label <- format_week_label(week)
 
   fig <- ggplot() +
     annotate("text", x = 0.5, y = 0.95,
-      label = glue("{team} {home_away} {opponent} - Week {week}, {year}"),
+      label = glue("{team} {home_away} {opponent} - {week_label}, {year}"),
       size = 6, fontface = "bold", hjust = 0.5) +
     annotate("text", x = 0.05, y = 0.85, label = "PASSING", size = 4, fontface = "bold", hjust = 0) +
     annotate("text", x = 0.05, y = 0.80, label = paste(collapse = "\n",
@@ -298,7 +299,8 @@ plot_rb_workload <- function(pbp, week, year, game_id = NULL) {
   touch_shapes <- c("Rush" = 16, "Target" = 17, "Fumble" = 18, "Score" = 8)
   touch_sizes <- c("Rush" = 2, "Target" = 2, "Fumble" = 2.5, "Score" = 3)
 
-  game_title <- glue("{away_team} at {home_team} - Week {week}, {year}")
+  week_label <- format_week_label(week)
+  game_title <- glue("{away_team} at {home_team} - {week_label}, {year}")
 
   plot <- ggplot(wp$wp_line, aes(x = game_seconds_remaining, y = vegas_home_wp)) +
     geom_hline(yintercept = 0.5, color = grey, linewidth = 0.5) +
@@ -391,7 +393,8 @@ plot_wrte_targets <- function(pbp, week, year, game_id = NULL) {
   touch_shapes <- c("Target" = 17, "Fumble" = 18, "Score" = 8)
   touch_sizes <- c("Target" = 2, "Fumble" = 2.5, "Score" = 3)
 
-  game_title <- glue("{away_team} at {home_team} - Week {week}, {year}")
+  week_label <- format_week_label(week)
+  game_title <- glue("{away_team} at {home_team} - {week_label}, {year}")
 
   plot <- ggplot(wp$wp_line, aes(x = game_seconds_remaining, y = vegas_home_wp)) +
     geom_hline(yintercept = 0.5, color = grey, linewidth = 0.5) +

@@ -102,27 +102,23 @@ jobs:
           library(dplyr)
           year <- as.integer(Sys.getenv("WP_YEAR"))
           pbp <- load_pbp(year)
-          current_week <- max(pbp$week[pbp$game_seconds_remaining == max(pbp$game_seconds_remaining, na.rm = TRUE)], na.rm = TRUE)
-          game_ids <- unique(pbp$game_id[pbp$week == current_week])
+          game_ids <- unique(pbp$game_id)
           cat(paste(game_ids, collapse = " "))
           ' 2>/dev/null)
 
+          RELEASE_TAG="wp-${YEAR}-v${VERSION}"
+          EXISTING_ASSETS=$(gh release view "$RELEASE_TAG" --json assets -q '.assets[].name' 2>/dev/null || true)
+
           MISSING=""
+          FORCE="${{ github.event.inputs.force }}"
           for gid in $GAME_IDS; do
-            FORCE="${{ github.event.inputs.force }}"
             if [ "$FORCE" = "true" ]; then
               MISSING="$MISSING $gid"
               continue
             fi
 
-            EXISTING_TAG=$(gh release list --search "wp-${gid}-v" --json tagName -q '.[0].tagName' 2>/dev/null || true)
-            if [ -z "$EXISTING_TAG" ]; then
-              MISSING="$MISSING $gid"
-              continue
-            fi
-
-            EXISTING_MAJOR=$(echo "$EXISTING_TAG" | grep -oP 'v\K[0-9]+' || echo "0")
-            if [ "$EXISTING_MAJOR" != "$MAJOR" ]; then
+            # Check if wp chart asset exists in release
+            if ! echo "$EXISTING_ASSETS" | grep -q "wp-${gid}-v${VERSION}.png"; then
               MISSING="$MISSING $gid"
             fi
           done
@@ -140,35 +136,27 @@ jobs:
           if [ "${{ github.event.inputs.force }}" = "true" ]; then
             ARGS="$ARGS --force"
           fi
-          GAME_ARGS="--games $(echo '${{ steps.meta.outputs.missing }}' | sed 's/ /,/g')"
+          GAME_ARGS="--games $(echo '${{ steps.meta.outputs.missing }}' | tr ' ' ',' | sed 's/^,//;s/,$//')"
           Rscript scripts/win-probability.R $ARGS $GAME_ARGS
 
-      - name: Create releases
-        if: steps.meta.outputs.missing != ''
+      - name: Create or update release
+        if: steps.meta.outputs.missing != '' || always()
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           VERSION="${{ steps.meta.outputs.version }}"
           YEAR="${{ steps.meta.outputs.year }}"
-          for gid in ${{ steps.meta.outputs.missing }}; do
-            PNG="data/${YEAR}/wp-${gid}-v${VERSION}.png"
-            if [ ! -f "$PNG" ]; then
-              echo "Warning: $PNG not found, skipping release"
-              continue
-            fi
+          RELEASE_TAG="wp-${YEAR}-v${VERSION}"
 
-            PIECES=($(echo "$gid" | tr '_' ' '))
-            AWAY="${PIECES[2]}"
-            HOME="${PIECES[3]}"
-            WEEK="${PIECES[1]}"
+          # Ensure release exists
+          gh release view "$RELEASE_TAG" >/dev/null 2>&1 || gh release create "$RELEASE_TAG" --title "NFL Season ${YEAR} Game Breakdowns (v${VERSION})" --notes "Win probability, RB workload, and WR/TE target charts for NFL season ${YEAR}."
 
-            RELEASE_TAG="wp-${gid}-v${VERSION}"
-            gh release delete "$RELEASE_TAG" --yes 2>/dev/null || true
-            gh release create "$RELEASE_TAG" "$PNG" \
-              --title "WP: Week ${WEEK} - ${AWAY} at ${HOME} (v${VERSION})" \
-              --generate-notes
-            echo "Created release $RELEASE_TAG"
-          done
+          # Upload all generated pngs from data/${YEAR} and charts
+          PNG_FILES=$(find data/${YEAR} charts -name "*.png" 2>/dev/null || true)
+          if [ -n "$PNG_FILES" ]; then
+            gh release upload "$RELEASE_TAG" data/${YEAR}/*.png charts/*.png --clobber 2>/dev/null || true
+            echo "Uploaded all charts to release $RELEASE_TAG"
+          fi
 
       - name: Skip notification
         if: steps.meta.outputs.missing == ''
