@@ -40,7 +40,7 @@ jobs:
           Rscript -e '
           options(repos = c(CRAN = "https://cloud.r-project.org"))
           install.packages(c("nflfastR", "tidyverse", "scales", "ggimage", "lubridate"))
-         '
+          '
 
       - name: Determine season and week
         id: meta
