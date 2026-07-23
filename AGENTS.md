@@ -111,6 +111,15 @@ cat(sprintf("Coverage: %.1f%%\n", percent_coverage(cov)))
 
 Mocking network calls: use ` <<- ` to reassign wrapper functions (e.g. `load_data`, `load_logos`) with `on.exit` cleanup. nflfastR/nflreadr namespaces are locked, so can't mock at that level.
 
+### Bug Fix Testing Practice
+
+When fixing a bug, always follow red-green testing to prove the fix works:
+
+1. **Red**: Revert the fix (introduce the bug), write a test that exposes it, run the test and confirm it fails
+2. **Green**: Re-apply the fix, run the test and confirm it passes
+
+This ensures the test actually catches the bug and isn't just testing passing behavior. Never skip the red step — a test you haven't seen fail doesn't prove anything.
+
 ## Scripts
 
 ### win-probability.R

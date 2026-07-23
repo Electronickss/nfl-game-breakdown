@@ -1,4 +1,4 @@
-if (!interactive()) {
+if (!interactive() && !exists("TESTING")) {
   options(show.error.locations = TRUE)
   options(nflreadr.cache = "filesystem")
   library(nflfastR)
@@ -14,8 +14,7 @@ if (!interactive()) {
 source("scripts/helpers.R")
 source("scripts/wp-functions.R")
 
-main <- function() {
-  args <- commandArgs(trailingOnly = TRUE)
+main <- function(args = commandArgs(trailingOnly = TRUE)) {
   VERBOSE <<- "--verbose" %in% args
   args <- args[args != "--verbose"]
 
@@ -41,7 +40,7 @@ main <- function() {
   vlog("Season: {latest_year} (v{version})\n")
 
   dir.create("data", showWarnings = FALSE)
-  dir.create("data/{latest_year}", showWarnings = FALSE)
+  dir.create(glue("data/{latest_year}"), showWarnings = FALSE)
 
   logos <- load_logos()
   pbp_data <- load_data_and_build(latest_year, latest_year)
