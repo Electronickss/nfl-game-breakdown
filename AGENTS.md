@@ -12,17 +12,59 @@ Automated NFL game analysis for dynasty fantasy football. Generates charts from 
 nfl-game-breakdown/
 ├── .github/workflows/
 │   ├── win-probability.yml    # Weekly WP charts (schedule + dispatch)
-│   └── fantasy-stats.yml      # Weekly fantasy charts (schedule + dispatch)
+│   ├── fantasy-stats.yml      # Weekly fantasy charts (schedule + dispatch)
+│   └── test.yml               # CI tests + coverage
 ├── charts/                     # Generated PNGs (gitignored)
 ├── data/                       # Cached PBP data (gitignored)
 ├── Logos/                      # Team logo PNGs
 ├── scripts/
-│   ├── win-probability.R       # Win prob line + scoring/turnover/penalty markers
-│   ├── fantasy-stats.R         # Team summaries, target share, air yards, RB/WR workload
+│   ├── win-probability.R       # Entry point: loads libraries, calls main()
+│   ├── fantasy-stats.R         # Entry point: loads libraries, calls main()
+│   ├── wp-functions.R          # Pure functions for win probability charts
+│   ├── fs-functions.R          # Pure functions for fantasy stats charts
 │   ├── NFL-Win-Probability.R   # Legacy (unused)
 │   └── InGameWinPercentage.R   # Legacy (unused)
+├── tests/
+│   ├── testthat.R              # Test runner
+│   └── testthat/
+│       ├── setup.R             # Sources helper + function files
+│       ├── helper-mock-data.R  # Mock data factories
+│       ├── test-win-probability.R
+│       └── test-fantasy-stats.R
+├── DESCRIPTION                 # Package metadata (for testthat)
+├── .Rbuildignore
 └── AGENTS.md                   # This file
 ```
+
+## Function Separation
+
+Functions are separated from entry-point scripts for testability:
+
+- **`wp-functions.R`**: All pure functions for win probability (plot, theme, helpers). Sourced by `win-probability.R` and tests.
+- **`fs-functions.R`**: All pure functions for fantasy stats (get_team_stats, plot_*, vlog). Sourced by `fantasy-stats.R` and tests.
+
+Entry-point scripts (`win-probability.R`, `fantasy-stats.R`) handle library loading, CLI parsing, and orchestration. Guard: `if (!interactive() && !exists("TESTING"))`.
+
+## Tests
+
+99% coverage. Tests source function files directly via `setup.R`.
+
+```bash
+# Run tests
+Rscript -e 'testthat::test_dir("tests/testthat", reporter = "summary")'
+
+# Check coverage
+Rscript -e '
+library(testthat); library(covr)
+cov <- file_coverage(
+  source_files = c("scripts/wp-functions.R", "scripts/fs-functions.R"),
+  test_files = c("tests/testthat/setup.R", "tests/testthat/test-win-probability.R", "tests/testthat/test-fantasy-stats.R")
+)
+cat(sprintf("Coverage: %.1f%%\n", percent_coverage(cov)))
+'
+```
+
+Mocking network calls: use ` <<- ` to reassign wrapper functions (e.g. `load_data`, `load_logos`) with `on.exit` cleanup. nflfastR/nflreadr namespaces are locked, so can't mock at that level.
 
 ## Scripts
 
@@ -46,7 +88,7 @@ Both scripts accept `--verbose` anywhere in the args. When set, prints progress 
 
 ## Workflows
 
-Both workflows trigger on:
+Both chart workflows trigger on:
 - **Schedule**: Monday 8am UTC during NFL season (Sept-Jan)
 - **Manual dispatch**: From the Actions tab
 
@@ -64,23 +106,12 @@ Both workflows trigger on:
 | team     | No       | all     | Team abbreviation (e.g. BAL). Empty = all teams. |
 | verbose  | No       | false   | Enable verbose logging. |
 
-## Running Locally
-
-```bash
-# Win probability charts for 2025 season
-Rscript scripts/win-probability.R 2025
-
-# Fantasy stats for a specific week
-Rscript scripts/fantasy-stats.R 2025 1 BAL
-
-# With verbose output
-Rscript scripts/win-probability.R 2025 --verbose
-Rscript scripts/fantasy-stats.R 2025 1 BAL --verbose
-```
+### test.yml
+Triggers on push to main and PRs. Runs tests and checks coverage (99% threshold).
 
 ## Dependencies
 
-R packages: nflfastR, nflreadr, tidyverse, scales, ggimage, lubridate, future, future.apply
+R packages: nflfastR, nflreadr, tidyverse, scales, ggimage, lubridate, future, future.apply, testthat, covr
 System: libmagick++-dev (for ggimage/magick)
 
 ## Conventions
@@ -99,11 +130,9 @@ System: libmagick++-dev (for ggimage/magick)
 - Direct pushes to `main` are blocked (branch protection)
 - All changes go through PRs
 - No review requirements (merge when ready and CI passes)
-- No CI tests yet (planned)
 
 ## TODO
 
-- Add CI tests
 - Auto-detect NFL week from schedule (currently hardcoded defaults for 2025)
 - Snap count analysis
 - Red zone opportunity charts

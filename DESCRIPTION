@@ -1,0 +1,12 @@
+Package: nfl.game.breakdown
+Title: NFL Game Breakdown
+Version: 0.1.0
+Description: Automated NFL game analysis for dynasty fantasy football.
+License: MIT
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.1
+Suggests:
+    testthat (>= 3.0.0),
+    covr
+Config/testthat/edition: 3

@@ -1,0 +1,12 @@
+^.*\.Rproj$
+^\.Rproj\.user$
+^LICENSE$
+^CODE_OF_CONDUCT\.md$
+^AGENTS.md$
+^CONTEXT.md$
+^\.github$
+^charts$
+^data$
+^Logos$
+^scripts$
+^tests$

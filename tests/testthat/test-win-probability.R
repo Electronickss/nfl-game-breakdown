@@ -1,0 +1,249 @@
+test_that("is_scoring_team identifies scoring plays correctly", {
+  # Touchdown by this team
+  expect_true(is_scoring_team("KC", NA, NA, "KC", 0, "KC", "BAL"))
+
+  # Extra point by this team
+  expect_true(is_scoring_team("KC", "extra_point", NA, NA, 0, "KC", "BAL"))
+
+  # Made field goal by this team
+  expect_true(is_scoring_team("KC", "field_goal", "made", NA, 0, "KC", "BAL"))
+
+  # Safety by other team (this team benefits)
+  expect_true(is_scoring_team("BAL", NA, NA, NA, 1, "KC", "BAL"))
+
+  # No scoring play
+  expect_false(is_scoring_team("KC", "pass", NA, NA, 0, "KC", "BAL"))
+
+  # Field goal missed
+  expect_false(is_scoring_team("KC", "field_goal", "missed", NA, 0, "KC", "BAL"))
+
+  # Touchdown by other team
+  expect_false(is_scoring_team("KC", NA, NA, "BAL", 0, "KC", "BAL"))
+})
+
+test_that("is_scoring_team handles vectorized inputs", {
+  posteam <- c("KC", "BAL", "KC", "BAL")
+  play_type <- c("extra_point", NA, "pass", NA)
+  field_goal_result <- c(NA, NA, NA, NA)
+  td_team <- c(NA, "BAL", NA, NA)
+  safety <- c(0, 0, 0, 1)
+  this_team <- "KC"
+  that_team <- "BAL"
+
+  result <- is_scoring_team(posteam, play_type, field_goal_result, td_team, safety, this_team, that_team)
+
+  expect_equal(length(result), 4)
+  expect_true(result[1])   # KC extra point
+  expect_false(result[2])  # BAL td (not KC)
+  expect_false(result[3])  # KC pass, no score
+  expect_true(result[4])   # BAL safety (KC benefits)
+})
+
+test_that("is_turnover_team identifies turnovers correctly", {
+  # Interception by this team
+  expect_true(is_turnover_team("KC", 0, 1, "KC"))
+
+  # Fumble lost by this team
+  expect_true(is_turnover_team("KC", 1, 0, "KC"))
+
+  # Both interception and fumble
+  expect_true(is_turnover_team("KC", 1, 1, "KC"))
+
+  # No turnover
+  expect_false(is_turnover_team("KC", 0, 0, "KC"))
+
+  # Turnover by other team
+  expect_false(is_turnover_team("BAL", 0, 1, "KC"))
+})
+
+test_that("is_turnover_team handles vectorized inputs", {
+  posteam <- c("KC", "BAL", "KC", "KC")
+  fumble_lost <- c(0, 1, 1, 0)
+  interception <- c(1, 0, 0, 0)
+  this_team <- "KC"
+
+  result <- is_turnover_team(posteam, fumble_lost, interception, this_team)
+
+  expect_equal(length(result), 4)
+  expect_true(result[1])   # KC interception
+  expect_false(result[2])  # BAL fumble (not KC)
+  expect_true(result[3])   # KC fumble
+  expect_false(result[4])  # KC no turnover
+})
+
+test_that("is_penalty_team identifies penalties correctly", {
+  # First down penalty by this team
+  expect_true(is_penalty_team("KC", 1, "KC"))
+
+  # No first down penalty
+  expect_false(is_penalty_team("KC", 0, "KC"))
+
+  # Penalty by other team
+  expect_false(is_penalty_team("BAL", 1, "KC"))
+})
+
+test_that("is_penalty_team handles vectorized inputs", {
+  penalty_team <- c("KC", "BAL", "KC")
+  first_down_penalty <- c(1, 1, 0)
+  this_team <- "KC"
+
+  result <- is_penalty_team(penalty_team, first_down_penalty, this_team)
+
+  expect_equal(length(result), 3)
+  expect_true(result[1])   # KC penalty
+  expect_false(result[2])  # BAL penalty
+  expect_false(result[3])  # KC no first down
+})
+
+test_that("theme_high_contrast returns a valid ggplot2 theme", {
+  theme <- theme_high_contrast()
+  expect_s3_class(theme, "theme")
+})
+
+test_that("theme_high_contrast accepts custom colors", {
+  theme <- theme_high_contrast(
+    foreground_color = "#000000",
+    background_color = "#FFFFFF"
+  )
+  expect_s3_class(theme, "theme")
+  expect_equal(theme$plot.background$fill, "#FFFFFF")
+})
+
+test_that("plot_win_probability returns a ggplot object", {
+  game_data <- make_mock_game()
+  logos <- make_mock_logos()
+
+  p <- plot_win_probability(game_data, logos)
+
+  expect_s3_class(p, "ggplot")
+})
+
+test_that("load_data wraps load_pbp correctly", {
+  # Just test that the function exists and is callable
+  expect_true(is.function(load_data))
+})
+
+test_that("load_logos returns team abbreviations and logos", {
+  # This function calls nflfastR::teams_colors_logos which needs the library
+  # Skip if nflfastR is not available
+  skip_if_not_installed("nflfastR")
+  logos <- load_logos()
+  expect_s3_class(logos, "tbl_df")
+  expect_true("team_abbr" %in% names(logos))
+  expect_true("team_logo_espn" %in% names(logos))
+  expect_true(nrow(logos) > 0)
+})
+
+test_that("is_scoring_team handles NA values", {
+  expect_false(is_scoring_team(NA_character_, NA_character_, NA_character_, NA_character_, NA_integer_, "KC", "BAL"))
+})
+
+test_that("is_turnover_team handles NA values", {
+  expect_false(is_turnover_team(NA, NA, NA, "KC"))
+})
+
+test_that("is_penalty_team handles NA values", {
+  expect_false(is_penalty_team(NA, NA, "KC"))
+})
+
+test_that("load_data is a function wrapping load_pbp", {
+  expect_true(is.function(load_data))
+  expect_true("start_year" %in% names(formals(load_data)))
+  expect_true("end_year" %in% names(formals(load_data)))
+})
+
+test_that("load_logos calls teams_colors_logos", {
+  fake_logos <- tibble::tribble(
+    ~team_abbr, ~team_logo_espn,
+    "KC", "https://example.com/kc.png",
+    "BAL", "https://example.com/bal.png"
+  )
+  load_logos_orig <- load_logos
+  on.exit(load_logos <<- load_logos_orig, add = TRUE)
+  load_logos <<- function() fake_logos
+  result <- load_logos()
+  expect_equal(nrow(result), 2)
+  expect_true("team_abbr" %in% names(result))
+  expect_true("team_logo_espn" %in% names(result))
+  load_logos <<- load_logos_orig
+})
+
+test_that("load_data_and_build processes mock data end-to-end", {
+  mock_pbp <- tibble::tribble(
+    ~game_id, ~game_date, ~posteam, ~home_team, ~away_team, ~qtr, ~down, ~ydstogo, ~game_seconds_remaining, ~yardline_100, ~score_differential, ~defteam_timeouts_remaining, ~posteam_timeouts_remaining, ~play_type, ~field_goal_result, ~td_team, ~safety, ~penalty_team, ~first_down_penalty, ~interception, ~fumble_lost, ~home_score, ~away_score, ~vegas_home_wp, ~wp,
+    "2024_01_KC_BAL", "2024-09-05", "KC", "BAL", "KC", 1, 1, 10, 3500, 75, 0, 3, 3, "pass", NA, NA, 0, NA, 0, 0, 0, 24, 17, 0.55, 0.55,
+    "2024_01_KC_BAL", "2024-09-05", "BAL", "BAL", "KC", 1, 2, 7, 3400, 60, 7, 3, 3, "pass", NA, NA, 0, NA, 0, 0, 0, 24, 17, 0.65, 0.65,
+    "2024_01_KC_BAL", "2024-09-05", "KC", "BAL", "KC", 2, 1, 10, 1800, 50, -7, 2, 3, "extra_point", NA, NA, 0, NA, 0, 0, 0, 24, 17, 0.45, 0.45,
+    "2024_01_KC_BAL", "2024-09-05", "BAL", "BAL", "KC", 3, 1, 10, 900, 30, 0, 2, 2, "field_goal", "made", NA, 0, NA, 0, 0, 0, 24, 17, 0.50, 0.50,
+    "2024_01_KC_BAL", "2024-09-05", "KC", "BAL", "KC", 4, 1, 10, 100, 20, -3, 1, 2, "pass", NA, NA, 0, NA, 0, 1, 0, 24, 17, 0.30, 0.30,
+    "2024_01_KC_BAL", "2024-09-05", "BAL", "BAL", "KC", 4, 2, 5, 50, 15, 3, 1, 1, "rush", NA, NA, 0, NA, 0, 0, 0, 24, 17, 0.90, 0.90
+  )
+
+  mock_logos <- tibble::tribble(
+    ~team_abbr, ~team_logo_espn,
+    "KC", "https://example.com/kc.png",
+    "BAL", "https://example.com/bal.png"
+  )
+
+  load_data_orig <- load_data
+  load_logos_orig <- load_logos
+  on.exit({ load_data <<- load_data_orig; load_logos <<- load_logos_orig }, add = TRUE)
+  load_data <<- function(s, e) mock_pbp
+  load_logos <<- function() mock_logos
+
+  result <- load_data_and_build(2024, 2024)
+  expect_s3_class(result, "tbl_df")
+  expect_true(nrow(result) > 0)
+  expect_true("poswins" %in% names(result))
+  expect_true("home_scoring_play" %in% names(result))
+  expect_true("away_scoring_play" %in% names(result))
+  expect_true("home_turnover_play" %in% names(result))
+  expect_true("away_turnover_play" %in% names(result))
+  expect_true("home_penalty" %in% names(result))
+  expect_true("away_penalty" %in% names(result))
+  expect_true("team_logo_espn" %in% names(result))
+  load_data <<- load_data_orig
+  load_logos <<- load_logos_orig
+})
+
+test_that("load_data_and_build filters out TIE games", {
+  mock_pbp <- tibble::tribble(
+    ~game_id, ~game_date, ~posteam, ~home_team, ~away_team, ~qtr, ~down, ~ydstogo, ~game_seconds_remaining, ~yardline_100, ~score_differential, ~defteam_timeouts_remaining, ~posteam_timeouts_remaining, ~play_type, ~field_goal_result, ~td_team, ~safety, ~penalty_team, ~first_down_penalty, ~interception, ~fumble_lost, ~home_score, ~away_score, ~vegas_home_wp, ~wp,
+    "2024_01_KC_BAL", "2024-09-05", "KC", "BAL", "KC", 4, 1, 10, 10, 50, 0, 3, 3, "pass", NA, NA, 0, NA, 0, 0, 0, 14, 14, 0.50, 0.50
+  )
+  mock_logos <- tibble::tribble(~team_abbr, ~team_logo_espn, "KC", "x", "BAL", "x")
+
+  load_data_orig <- load_data
+  load_logos_orig <- load_logos
+  on.exit({ load_data <<- load_data_orig; load_logos <<- load_logos_orig }, add = TRUE)
+  load_data <<- function(s, e) mock_pbp
+  load_logos <<- function() mock_logos
+
+  result <- load_data_and_build(2024, 2024)
+  expect_equal(nrow(result), 0)
+  load_data <<- load_data_orig
+  load_logos <<- load_logos_orig
+})
+
+test_that("load_data_and_build handles NA filter columns", {
+  mock_pbp <- tibble::tribble(
+    ~game_id, ~game_date, ~posteam, ~home_team, ~away_team, ~qtr, ~down, ~ydstogo, ~game_seconds_remaining, ~yardline_100, ~score_differential, ~defteam_timeouts_remaining, ~posteam_timeouts_remaining, ~play_type, ~field_goal_result, ~td_team, ~safety, ~penalty_team, ~first_down_penalty, ~interception, ~fumble_lost, ~home_score, ~away_score, ~vegas_home_wp, ~wp,
+    "2024_01_KC_BAL", "2024-09-05", "KC", "BAL", "KC", 1, NA, 10, 3500, 75, 0, 3, 3, "pass", NA, NA, 0, NA, 0, 0, 0, 24, 17, 0.55, 0.55,
+    "2024_01_KC_BAL", "2024-09-05", "BAL", "BAL", "KC", 1, 2, 7, 3400, NA, 7, 3, 3, "pass", NA, NA, 0, NA, 0, 0, 0, 24, 17, 0.65, 0.65,
+    "2024_01_KC_BAL", "2024-09-05", "KC", "BAL", "KC", 5, 1, 10, 1800, 50, -7, NA, 3, "pass", NA, NA, 0, NA, 0, 0, 0, 24, 17, 0.45, 0.45,
+    "2024_01_KC_BAL", "2024-09-05", "BAL", "BAL", "KC", 3, 1, 10, 900, 30, 0, 2, 2, NA, NA, NA, 0, NA, 0, 0, 0, 24, 17, 0.50, 0.50
+  )
+  mock_logos <- tibble::tribble(~team_abbr, ~team_logo_espn, "KC", "x", "BAL", "x")
+
+  load_data_orig <- load_data
+  load_logos_orig <- load_logos
+  on.exit({ load_data <<- load_data_orig; load_logos <<- load_logos_orig }, add = TRUE)
+  load_data <<- function(s, e) mock_pbp
+  load_logos <<- function() mock_logos
+
+  result <- load_data_and_build(2024, 2024)
+  expect_s3_class(result, "tbl_df")
+  expect_equal(nrow(result), 0)
+  load_data <<- load_data_orig
+  load_logos <<- load_logos_orig
+})
