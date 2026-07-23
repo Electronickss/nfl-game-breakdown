@@ -18,12 +18,13 @@ nfl-game-breakdown/
 ├── data/                       # Cached PBP data (gitignored)
 ├── Logos/                      # Team logo PNGs
 ├── scripts/
-│   ├── win-probability.R       # Entry point: loads libraries, calls main()
-│   ├── fantasy-stats.R         # Entry point: loads libraries, calls main()
-│   ├── wp-functions.R          # Pure functions for win probability charts
-│   ├── fs-functions.R          # Pure functions for fantasy stats charts
-│   ├── NFL-Win-Probability.R   # Legacy (unused)
-│   └── InGameWinPercentage.R   # Legacy (unused)
+│   ├── helpers.R                 # Shared constants (colors) and vlog()
+│   ├── win-probability.R         # Entry point: loads libraries, calls main()
+│   ├── fantasy-stats.R           # Entry point: loads libraries, calls main()
+│   ├── wp-functions.R            # Pure functions for win probability charts
+│   ├── fs-functions.R            # Pure functions for fantasy stats charts
+│   ├── NFL-Win-Probability.R     # Legacy (unused)
+│   └── InGameWinPercentage.R     # Legacy (unused)
 ├── tests/
 │   ├── testthat.R              # Test runner
 │   └── testthat/
@@ -40,8 +41,9 @@ nfl-game-breakdown/
 
 Functions are separated from entry-point scripts for testability:
 
-- **`wp-functions.R`**: All pure functions for win probability (plot, theme, helpers). Sourced by `win-probability.R` and tests.
-- **`fs-functions.R`**: All pure functions for fantasy stats (get_team_stats, plot_*, vlog). Sourced by `fantasy-stats.R` and tests.
+- **`helpers.R`**: Shared color constants and `vlog()` function. Sourced by all other scripts.
+- **`wp-functions.R`**: Pure functions for win probability (plot, theme, helpers). Sourced by `win-probability.R` and tests.
+- **`fs-functions.R`**: Pure functions for fantasy stats (get_team_stats, plot_*). Sourced by `fantasy-stats.R` and tests.
 
 Entry-point scripts (`win-probability.R`, `fantasy-stats.R`) handle library loading, CLI parsing, and orchestration. Guard: `if (!interactive() && !exists("TESTING"))`.
 
@@ -77,11 +79,12 @@ Mocking network calls: use ` <<- ` to reassign wrapper functions (e.g. `load_dat
 - CLI: `Rscript scripts/win-probability.R [year] [--verbose]`
 
 ### fantasy-stats.R
-- Generates per-team charts: summary, target share, air yards, RB workload, WR/TE targets
+- Generates per-team charts: summary, target share, air yards
+- Generates per-game RB workload and WR/TE target charts (one set per game in the week)
 - Processes teams in parallel using `future::future_lapply` (2 workers)
 - CLI: `Rscript scripts/fantasy-stats.R [year] [week] [team] [--verbose]`
 - If `team` is omitted or empty, processes all teams from the schedule
-- Output: `charts/{TEAM}-w{week}-*.png`, `charts/rb-workload-w{week}.png`, `charts/wrte-targets-w{week}.png`
+- Output: `charts/{TEAM}-w{week}-*.png`, `charts/rb-workload-w{week}-{game_id}.png`, `charts/wrte-targets-w{week}-{game_id}.png`
 
 ### Verbose Flag
 Both scripts accept `--verbose` anywhere in the args. When set, prints progress messages (which game/team is being processed, files saved, etc.). Without it, scripts are silent except for errors.
@@ -111,7 +114,7 @@ Triggers on push to main and PRs. Runs tests and checks coverage (99% threshold)
 
 ## Dependencies
 
-R packages: nflfastR, nflreadr, tidyverse, scales, ggimage, lubridate, future, future.apply, testthat, covr
+R packages: nflfastR, nflreadr, dplyr, ggplot2, glue, scales, ggimage, lubridate, future, future.apply, testthat, covr
 System: libmagick++-dev (for ggimage/magick)
 
 ## Conventions
@@ -124,6 +127,9 @@ System: libmagick++-dev (for ggimage/magick)
 - Workflows use `Rscript` to run scripts directly
 - All chart output is gitignored; artifacts are uploaded via `actions/upload-artifact`
 - Error handling: `tryCatch` with `cat()` for errors (always visible). Progress uses `vlog()` (verbose only).
+- ggplot2: uses `linewidth` for line-based geoms (`geom_line`, `geom_hline`, `geom_vline`, `geom_rug`) and theme elements (`element_line`, `element_rect`). Uses `size` for text (`geom_text`, `element_text`) and points (`geom_point`).
+- String interpolation: uses `glue::glue()` (not `str_interp` or `sprintf` for user-facing strings).
+- Pipes: uses native pipe `|>` (R 4.1+), not magrittr `%>%`.
 
 ## Branch Strategy
 
