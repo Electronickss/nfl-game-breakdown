@@ -362,24 +362,40 @@ plot_wrte_targets <- function(pbp, week, year) {
   return(plot)
 }
 
-year <- 2023
-week <- 16
-team <- "BAL"
+args <- commandArgs(trailingOnly = TRUE)
+year <- if (length(args) >= 1) as.integer(args[1]) else 2023
+week <- if (length(args) >= 2) as.integer(args[2]) else 16
+team <- if (length(args) >= 3 && nchar(args[3]) > 0) args[3] else ""
 
 dir.create("charts", showWarnings = FALSE)
 
 pbp <- load_pbp_data(year)
 
-team_stats <- get_team_stats(pbp, team, week)
+if (nchar(team) > 0) {
+  teams <- team
+} else {
+  schedule <- load_schedule(year) %>% filter(week == !!week)
+  teams <- unique(c(schedule$home_team, schedule$away_team))
+}
 
-summary_plot <- plot_team_summary(team_stats, team, week, year)
-ggsave(str_interp("charts/${team}-w${week}-summary.png"), summary_plot, width = 8, height = 6, dpi = 150)
+for (t in teams) {
+  cat(str_interp("Processing ${t}...\n"))
+  tryCatch({
+    team_stats <- get_team_stats(pbp, t, week)
+    summary_plot <- plot_team_summary(team_stats, t, week, year)
+    ggsave(str_interp("charts/${t}-w${week}-summary.png"), summary_plot, width = 8, height = 6, dpi = 150)
 
-target_plot <- plot_target_share(team_stats$receiving, team)
-ggsave(str_interp("charts/${team}-w${week}-targets.png"), target_plot, width = 8, height = 6, dpi = 150)
+    if (nrow(team_stats$receiving) > 0) {
+      target_plot <- plot_target_share(team_stats$receiving, t)
+      ggsave(str_interp("charts/${t}-w${week}-targets.png"), target_plot, width = 8, height = 6, dpi = 150)
 
-air_plot <- plot_air_yards(team_stats$receiving, team)
-ggsave(str_interp("charts/${team}-w${week}-airyards.png"), air_plot, width = 8, height = 6, dpi = 150)
+      air_plot <- plot_air_yards(team_stats$receiving, t)
+      ggsave(str_interp("charts/${t}-w${week}-airyards.png"), air_plot, width = 8, height = 6, dpi = 150)
+    }
+  }, error = function(e) {
+    cat(str_interp("Error processing ${t}: ${e$message}\n"))
+  })
+}
 
 rb_plot <- plot_rb_workload(pbp, week, year)
 ggsave(str_interp("charts/rb-workload-w${week}.png"), rb_plot, width = 10, height = 6, dpi = 150)
@@ -387,5 +403,4 @@ ggsave(str_interp("charts/rb-workload-w${week}.png"), rb_plot, width = 10, heigh
 wrte_plot <- plot_wrte_targets(pbp, week, year)
 ggsave(str_interp("charts/wrte-targets-w${week}.png"), wrte_plot, width = 10, height = 6, dpi = 150)
 
-cat(str_interp("Generated charts for ${team} Week ${week}, ${year}\n"))
-cat(str_interp("Opponent: ${ifelse(team_stats$is_home, 'vs', '@')} ${team_stats$opponent}\n"))
+cat(str_interp("Generated charts for Week ${week}, ${year}\n"))

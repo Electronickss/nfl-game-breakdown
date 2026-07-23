@@ -1,0 +1,49 @@
+name: Win Probability Charts
+
+on:
+  schedule:
+    # Run Monday mornings during NFL season (Sept-Jan)
+    - cron: '0 8 * * 1'
+  workflow_dispatch:
+    inputs:
+      year:
+        description: 'NFL season year (e.g. 2025). Leave empty to auto-detect.'
+        required: false
+        default: ''
+
+jobs:
+  win-probability:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup R
+        uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: '4.3.1'
+
+      - name: Install system dependencies
+        run: sudo apt-get install -y libmagick++-dev
+
+      - name: Install dependencies
+        run: |
+          Rscript -e '
+          options(repos = c(CRAN = "https://cloud.r-project.org"))
+          install.packages(c("nflfastR", "tidyverse", "scales", "ggimage", "lubridate"))
+         '
+
+      - name: Generate win probability charts
+        run: |
+          ARGS=""
+          if [ -n "${{ github.event.inputs.year }}" ]; then
+            ARGS="${{ github.event.inputs.year }}"
+          fi
+          Rscript scripts/win-probability.R $ARGS
+
+      - name: Upload charts
+        uses: actions/upload-artifact@v4
+        with:
+          name: win-probability-charts
+          path: data/**/*.png
