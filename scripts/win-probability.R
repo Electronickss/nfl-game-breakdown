@@ -29,6 +29,20 @@ main <- function(args = commandArgs(trailingOnly = TRUE)) {
     args <- args[-c(idx, idx + 1)]
   }
 
+  week_filter <- NULL
+  if ("--week" %in% args) {
+    idx <- which(args == "--week")
+    week_filter <- args[idx + 1]
+    args <- args[-c(idx, idx + 1)]
+  }
+
+  team_filter <- NULL
+  if ("--team" %in% args) {
+    idx <- which(args == "--team")
+    team_filter <- args[idx + 1]
+    args <- args[-c(idx, idx + 1)]
+  }
+
   if (length(args) >= 1) {
     latest_year <- as.integer(args[1])
   } else if (month(now()) < 9) {
@@ -49,6 +63,14 @@ main <- function(args = commandArgs(trailingOnly = TRUE)) {
   game_ids <- unique(pbp_data$game_id)
   if (!is.null(game_filter)) {
     game_ids <- game_ids[game_ids %in% game_filter]
+  }
+  if (!is.null(week_filter) && nchar(week_filter) > 0) {
+    week_games <- pbp_data |> filter(week == as.integer(week_filter)) |> pull(game_id) |> unique()
+    game_ids <- game_ids[game_ids %in% week_games]
+  }
+  if (!is.null(team_filter) && nchar(team_filter) > 0) {
+    team_games <- pbp_data |> filter(home_team == team_filter | away_team == team_filter) |> pull(game_id) |> unique()
+    game_ids <- game_ids[game_ids %in% team_games]
   }
 
   for (single_game_id in game_ids) {

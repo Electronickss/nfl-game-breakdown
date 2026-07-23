@@ -10,6 +10,14 @@ on:
         description: 'NFL season year (e.g. 2025). Leave empty to auto-detect.'
         required: false
         default: ''
+      week:
+        description: 'NFL week number (1-22) or leave empty for full season'
+        required: false
+        default: ''
+      team:
+        description: 'Team abbreviation (optional, e.g. BAL). Leave empty for all teams.'
+        required: false
+        default: ''
       verbose:
         description: 'Enable verbose output'
         required: false
@@ -96,13 +104,25 @@ jobs:
           echo "year=$YEAR" >> "$GITHUB_OUTPUT"
 
           export WP_YEAR="$YEAR"
+          export WP_WEEK="${{ github.event.inputs.week }}"
+          export WP_TEAM="${{ github.event.inputs.team }}"
           GAME_IDS=$(Rscript -e '
           options(nflreadr.cache = "filesystem")
           library(nflfastR)
           library(dplyr)
           year <- as.integer(Sys.getenv("WP_YEAR"))
+          week_input <- Sys.getenv("WP_WEEK")
+          team_input <- Sys.getenv("WP_TEAM")
           pbp <- load_pbp(year)
           game_ids <- unique(pbp$game_id)
+          if (nzchar(week_input)) {
+            week_games <- pbp |> filter(week == as.integer(week_input)) |> pull(game_id) |> unique()
+            game_ids <- game_ids[game_ids %in% week_games]
+          }
+          if (nzchar(team_input)) {
+            team_games <- pbp |> filter(home_team == team_input | away_team == team_input) |> pull(game_id) |> unique()
+            game_ids <- game_ids[game_ids %in% team_games]
+          }
           cat(paste(game_ids, collapse = " "))
           ' 2>/dev/null)
 
@@ -133,6 +153,12 @@ jobs:
         if: steps.meta.outputs.missing != ''
         run: |
           ARGS="${{ steps.meta.outputs.year }}"
+          if [ -n "${{ github.event.inputs.week }}" ]; then
+            ARGS="$ARGS --week ${{ github.event.inputs.week }}"
+          fi
+          if [ -n "${{ github.event.inputs.team }}" ]; then
+            ARGS="$ARGS --team ${{ github.event.inputs.team }}"
+          fi
           if [ "${{ github.event.inputs.verbose }}" = "true" ]; then
             ARGS="$ARGS --verbose"
           fi
