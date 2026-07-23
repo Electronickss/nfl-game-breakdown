@@ -271,3 +271,38 @@ test_that("load_data_and_build handles NA filter columns", {
   load_data <<- load_data_orig
   load_logos <<- load_logos_orig
 })
+
+test_that("main creates data directory with interpolated year, not literal string", {
+  tmp_dir <- tempdir()
+  test_subdir <- file.path(tmp_dir, paste0("test_wp_dir_", sample.int(100000, 1)))
+  dir.create(test_subdir)
+  on.exit(unlink(test_subdir, recursive = TRUE), add = TRUE)
+
+  writeLines("1.0", file.path(test_subdir, "VERSION"))
+
+  old_wd <- getwd()
+  on.exit(setwd(old_wd), add = TRUE)
+
+  project_root <- normalizePath(file.path(old_wd, "..", ".."))
+  setwd(project_root)
+  TESTING <- TRUE
+  source(file.path(project_root, "scripts/win-probability.R"), local = environment())
+  setwd(test_subdir)
+
+  load_data_and_build_orig <- load_data_and_build
+  load_logos_orig <- load_logos
+  on.exit({
+    load_data_and_build <<- load_data_and_build_orig
+    load_logos <<- load_logos_orig
+  }, add = TRUE)
+
+  load_data_and_build <<- function(s, e) tibble::tibble(game_id = character(0))
+  load_logos <<- make_mock_logos
+
+  main(args = c("2024"))
+
+  expect_true(dir.exists(file.path(test_subdir, "data", "2024")),
+    info = "Should create directory named with the numeric year")
+  expect_false(dir.exists(file.path(test_subdir, "data", "{2024}")),
+    info = "Should NOT create a directory with literal curly braces")
+})
