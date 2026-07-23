@@ -32,6 +32,9 @@ jobs:
         with:
           r-version: '4.3.1'
 
+      - name: Install system dependencies
+        run: sudo apt-get install -y libmagick++-dev
+
       - name: Install dependencies
         run: |
           Rscript -e '
