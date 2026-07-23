@@ -162,12 +162,15 @@ plot_win_probability <- function(data, logos, foreground_color = rich_black, bac
   return(plot)
 }
 
-earliest_year <- 2009
-if (month(now()) < 9) {
+args <- commandArgs(trailingOnly = TRUE)
+if (length(args) >= 1) {
+  latest_year <- as.integer(args[1])
+} else if (month(now()) < 9) {
   latest_year <- year(now()) - 1
 } else {
   latest_year <- year(now())
 }
+earliest_year <- 2009
 
 dir.create("data", showWarnings = FALSE)
 for (year_var in seq(earliest_year, latest_year, by = 1)) {
