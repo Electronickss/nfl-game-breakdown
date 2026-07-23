@@ -33,8 +33,7 @@ jobs:
           r-version: '4.3.1'
 
       - name: Install dependencies
-        run: |
-          install.packages(c("nflfastR", "tidyverse", "scales", "ggimage", "lubridate", "gghighcontrast"))
+        run: Rscript -e 'install.packages(c("nflfastR", "tidyverse", "scales", "ggimage", "lubridate", "gghighcontrast"))'
 
       - name: Generate win probability charts
         run: Rscript scripts/win-probability.R
