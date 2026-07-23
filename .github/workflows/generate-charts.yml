@@ -1,9 +1,6 @@
-name: Generate Game Charts
+name: generate-charts
 
 on:
-  schedule:
-    # Run Monday mornings during NFL season (Sept-Jan)
-    - cron: '0 8 * * 1'
   workflow_dispatch:
     inputs:
       year:
