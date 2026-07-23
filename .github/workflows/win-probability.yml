@@ -10,6 +10,14 @@ on:
         description: 'NFL season year (e.g. 2025). Leave empty to auto-detect.'
         required: false
         default: ''
+      week:
+        description: 'NFL week number (1-22) or leave empty for full season'
+        required: false
+        default: ''
+      team:
+        description: 'Team abbreviation (optional, e.g. BAL). Leave empty for all teams.'
+        required: false
+        default: ''
       verbose:
         description: 'Enable verbose output'
         required: false
@@ -96,20 +104,31 @@ jobs:
           echo "year=$YEAR" >> "$GITHUB_OUTPUT"
 
           export WP_YEAR="$YEAR"
+          export WP_WEEK="${{ github.event.inputs.week }}"
+          export WP_TEAM="${{ github.event.inputs.team }}"
           GAME_IDS=$(Rscript -e '
           options(nflreadr.cache = "filesystem")
           library(nflfastR)
           library(dplyr)
           year <- as.integer(Sys.getenv("WP_YEAR"))
+          week_input <- Sys.getenv("WP_WEEK")
+          team_input <- Sys.getenv("WP_TEAM")
           pbp <- load_pbp(year)
-          current_week <- max(pbp$week[pbp$game_seconds_remaining == max(pbp$game_seconds_remaining, na.rm = TRUE)], na.rm = TRUE)
-          game_ids <- unique(pbp$game_id[pbp$week == current_week])
+          game_ids <- unique(pbp$game_id)
+          if (nzchar(week_input)) {
+            week_games <- pbp |> filter(week == as.integer(week_input)) |> pull(game_id) |> unique()
+            game_ids <- game_ids[game_ids %in% week_games]
+          }
+          if (nzchar(team_input)) {
+            team_games <- pbp |> filter(home_team == team_input | away_team == team_input) |> pull(game_id) |> unique()
+            game_ids <- game_ids[game_ids %in% team_games]
+          }
           cat(paste(game_ids, collapse = " "))
           ' 2>/dev/null)
 
           MISSING=""
+          FORCE="${{ github.event.inputs.force }}"
           for gid in $GAME_IDS; do
-            FORCE="${{ github.event.inputs.force }}"
             if [ "$FORCE" = "true" ]; then
               MISSING="$MISSING $gid"
               continue
@@ -134,13 +153,19 @@ jobs:
         if: steps.meta.outputs.missing != ''
         run: |
           ARGS="${{ steps.meta.outputs.year }}"
+          if [ -n "${{ github.event.inputs.week }}" ]; then
+            ARGS="$ARGS --week ${{ github.event.inputs.week }}"
+          fi
+          if [ -n "${{ github.event.inputs.team }}" ]; then
+            ARGS="$ARGS --team ${{ github.event.inputs.team }}"
+          fi
           if [ "${{ github.event.inputs.verbose }}" = "true" ]; then
             ARGS="$ARGS --verbose"
           fi
           if [ "${{ github.event.inputs.force }}" = "true" ]; then
             ARGS="$ARGS --force"
           fi
-          GAME_ARGS="--games $(echo '${{ steps.meta.outputs.missing }}' | sed 's/ /,/g')"
+          GAME_ARGS="--games $(echo '${{ steps.meta.outputs.missing }}' | tr ' ' ',' | sed 's/^,//;s/,$//')"
           Rscript scripts/win-probability.R $ARGS $GAME_ARGS
 
       - name: Create releases
@@ -151,23 +176,46 @@ jobs:
           VERSION="${{ steps.meta.outputs.version }}"
           YEAR="${{ steps.meta.outputs.year }}"
           for gid in ${{ steps.meta.outputs.missing }}; do
-            PNG="data/${YEAR}/wp-${gid}-v${VERSION}.png"
-            if [ ! -f "$PNG" ]; then
-              echo "Warning: $PNG not found, skipping release"
+            WP_PNG="data/${YEAR}/wp-${gid}-v${VERSION}.png"
+            if [ ! -f "$WP_PNG" ]; then
+              echo "Warning: $WP_PNG not found, skipping release"
               continue
             fi
 
             PIECES=($(echo "$gid" | tr '_' ' '))
             AWAY="${PIECES[2]}"
             HOME="${PIECES[3]}"
-            WEEK="${PIECES[1]}"
+            WEEK_NUM="${PIECES[1]}"
+
+            if [ "$WEEK_NUM" -eq 19 ]; then
+              WEEK_LABEL="Wild Card Round"
+            elif [ "$WEEK_NUM" -eq 20 ]; then
+              WEEK_LABEL="Divisional Round"
+            elif [ "$WEEK_NUM" -eq 21 ]; then
+              WEEK_LABEL="Conference Championship"
+            elif [ "$WEEK_NUM" -eq 22 ]; then
+              WEEK_LABEL="Super Bowl"
+            else
+              WEEK_LABEL="Week ${WEEK_NUM}"
+            fi
 
             RELEASE_TAG="wp-${gid}-v${VERSION}"
             gh release delete "$RELEASE_TAG" --yes 2>/dev/null || true
-            gh release create "$RELEASE_TAG" "$PNG" \
-              --title "WP: Week ${WEEK} - ${AWAY} at ${HOME} (v${VERSION})" \
+
+            ASSETS=("$WP_PNG")
+            RB_PNG=$(find charts -name "rb-workload-w*-${gid}-v${VERSION}.png" 2>/dev/null || true)
+            if [ -n "$RB_PNG" ]; then
+              ASSETS+=("$RB_PNG")
+            fi
+            WRTE_PNG=$(find charts -name "wrte-targets-w*-${gid}-v${VERSION}.png" 2>/dev/null || true)
+            if [ -n "$WRTE_PNG" ]; then
+              ASSETS+=("$WRTE_PNG")
+            fi
+
+            gh release create "$RELEASE_TAG" "${ASSETS[@]}" \
+              --title "${WEEK_LABEL} - ${AWAY} at ${HOME} (v${VERSION})" \
               --generate-notes
-            echo "Created release $RELEASE_TAG"
+            echo "Created release $RELEASE_TAG with group of images: ${ASSETS[*]}"
           done
 
       - name: Skip notification
