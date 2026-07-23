@@ -23,6 +23,14 @@ on:
         required: false
         type: boolean
         default: false
+      force:
+        description: 'Force regeneration even if release exists for current version'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
 
 jobs:
   fantasy-stats:
@@ -55,7 +63,7 @@ jobs:
         run: |
           Rscript -e '
           options(repos = c(CRAN = "https://cloud.r-project.org"))
-          install.packages(c("nflfastR", "dplyr", "ggplot2", "glue", "scales", "future", "future.apply"))
+          install.packages(c("nflfastR", "dplyr", "ggplot2", "glue", "scales", "future", "future.apply", "ggrepel"))
           '
 
       - name: Cache nflreadr data
@@ -67,28 +75,69 @@ jobs:
             nflreadr-${{ runner.os }}-${{ github.event.inputs.year || '2025' }}-
             nflreadr-${{ runner.os }}-
 
-      - name: Determine season and week
-        id: meta
+      - name: Check existing release
+        id: check
         run: |
-          YEAR="${{ github.event.inputs.year || '2025' }}"
-          WEEK="${{ github.event.inputs.week || '1' }}"
-          TEAM="${{ github.event.inputs.team || '' }}"
-          VERBOSE="${{ github.event.inputs.verbose || 'false' }}"
-          echo "year=$YEAR" >> "$GITHUB_OUTPUT"
-          echo "week=$WEEK" >> "$GITHUB_OUTPUT"
-          echo "team=$TEAM" >> "$GITHUB_OUTPUT"
-          echo "verbose=$VERBOSE" >> "$GITHUB_OUTPUT"
+          VERSION=$(cat VERSION)
+          MAJOR=$(echo "$VERSION" | cut -d. -f1)
+          YEAR="${{ github.event.inputs.year }}"
+          WEEK="${{ github.event.inputs.week }}"
+          RELEASE_TAG="fantasy-${YEAR}-w${WEEK}-v${VERSION}"
+
+          FORCE="${{ github.event.inputs.force }}"
+          if [ "$FORCE" = "true" ]; then
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "force=true" >> "$GITHUB_OUTPUT"
+            echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+            echo "major=$MAJOR" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          EXISTING_TAG=$(gh release list --search "fantasy-${YEAR}-w${WEEK}-v" --json tagName -q '.[0].tagName' 2>/dev/null || true)
+          if [ -z "$EXISTING_TAG" ]; then
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          else
+            EXISTING_MAJOR=$(echo "$EXISTING_TAG" | grep -oP 'v\K[0-9]+' || echo "0")
+            if [ "$EXISTING_MAJOR" = "$MAJOR" ]; then
+              echo "exists=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "exists=false" >> "$GITHUB_OUTPUT"
+            fi
+          fi
+
+          echo "force=false" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "major=$MAJOR" >> "$GITHUB_OUTPUT"
 
       - name: Generate fantasy stats charts
+        if: steps.check.outputs.exists == 'false'
         run: |
-          ARGS="${{ steps.meta.outputs.year }} ${{ steps.meta.outputs.week }} ${{ steps.meta.outputs.team }}"
-          if [ "${{ steps.meta.outputs.verbose }}" = "true" ]; then
+          VERSION="${{ steps.check.outputs.version }}"
+          ARGS="${{ github.event.inputs.year }} ${{ github.event.inputs.week }} ${{ github.event.inputs.team }}"
+          if [ "${{ github.event.inputs.verbose }}" = "true" ]; then
             ARGS="$ARGS --verbose"
+          fi
+          if [ "${{ steps.check.outputs.force }}" = "true" ]; then
+            ARGS="$ARGS --force"
           fi
           Rscript scripts/fantasy-stats.R $ARGS
 
-      - name: Upload charts
-        uses: actions/upload-artifact@v4
-        with:
-          name: fantasy-stats-${{ steps.meta.outputs.year }}-w${{ steps.meta.outputs.week }}
-          path: charts/*.png
+      - name: Create release
+        if: steps.check.outputs.exists == 'false'
+        run: |
+          VERSION="${{ steps.check.outputs.version }}"
+          YEAR="${{ github.event.inputs.year }}"
+          WEEK="${{ github.event.inputs.week }}"
+          RELEASE_TAG="fantasy-${YEAR}-w${WEEK}-v${VERSION}"
+
+          gh release delete "$RELEASE_TAG" --yes 2>/dev/null || true
+          gh release create "$RELEASE_TAG" charts/*.png \
+            --title "Fantasy Stats: Week ${WEEK}, ${YEAR} (v${VERSION})" \
+            --generate-notes
+          echo "Created release $RELEASE_TAG"
+
+      - name: Skip notification
+        if: steps.check.outputs.exists == 'true'
+        run: |
+          VERSION="${{ steps.check.outputs.version }}"
+          echo "Release for v${VERSION} already exists, nothing to do."

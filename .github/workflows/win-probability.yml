@@ -15,6 +15,14 @@ on:
         required: false
         type: boolean
         default: false
+      force:
+        description: 'Force regeneration even if release exists for current version'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
 
 jobs:
   win-probability:
@@ -47,7 +55,7 @@ jobs:
         run: |
           Rscript -e '
           options(repos = c(CRAN = "https://cloud.r-project.org"))
-          install.packages(c("nflfastR", "dplyr", "ggplot2", "glue", "scales", "ggimage", "lubridate"))
+          install.packages(c("nflfastR", "dplyr", "ggplot2", "glue", "scales", "ggimage", "lubridate", "ggrepel"))
           '
 
       - name: Cache nflreadr data
@@ -59,19 +67,98 @@ jobs:
             nflreadr-${{ runner.os }}-${{ github.event.inputs.year || 'auto' }}-
             nflreadr-${{ runner.os }}-
 
-      - name: Generate win probability charts
+      - name: Determine version and missing games
+        id: meta
         run: |
-          ARGS=""
-          if [ -n "${{ github.event.inputs.year }}" ]; then
-            ARGS="${{ github.event.inputs.year }}"
+          VERSION=$(cat VERSION)
+          MAJOR=$(echo "$VERSION" | cut -d. -f1)
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "major=$MAJOR" >> "$GITHUB_OUTPUT"
+
+          YEAR="${{ github.event.inputs.year }}"
+          if [ -z "$YEAR" ]; then
+            MONTH=$(date +%m)
+            if [ "$MONTH" -lt 9 ]; then
+              YEAR=$(( $(date +%Y) - 1 ))
+            else
+              YEAR=$(date +%Y)
+            fi
           fi
+          echo "year=$YEAR" >> "$GITHUB_OUTPUT"
+
+          GAME_IDS=$(Rscript -e '
+          options(nflreadr.cache = "filesystem")
+          library(nflfastR)
+          library(dplyr)
+          year <- as.integer(Sys.getenv("WP_YEAR"))
+          pbp <- load_pbp(year)
+          current_week <- max(pbp$week[pbp$game_seconds_remaining == max(pbp$game_seconds_remaining, na.rm = TRUE)], na.rm = TRUE)
+          game_ids <- unique(pbp$game_id[pbp$week == current_week])
+          cat(paste(game_ids, collapse = " "))
+          ' 2>/dev/null)
+          export WP_YEAR="$YEAR"
+
+          MISSING=""
+          for gid in $GAME_IDS; do
+            FORCE="${{ github.event.inputs.force }}"
+            if [ "$FORCE" = "true" ]; then
+              MISSING="$MISSING $gid"
+              continue
+            fi
+
+            EXISTING_TAG=$(gh release list --search "wp-${gid}-v" --json tagName -q '.[0].tagName' 2>/dev/null || true)
+            if [ -z "$EXISTING_TAG" ]; then
+              MISSING="$MISSING $gid"
+              continue
+            fi
+
+            EXISTING_MAJOR=$(echo "$EXISTING_TAG" | grep -oP 'v\K[0-9]+' || echo "0")
+            if [ "$EXISTING_MAJOR" != "$MAJOR" ]; then
+              MISSING="$MISSING $gid"
+            fi
+          done
+
+          echo "game_ids=$GAME_IDS" >> "$GITHUB_OUTPUT"
+          echo "missing=$MISSING" >> "$GITHUB_OUTPUT"
+
+      - name: Generate missing charts
+        if: steps.meta.outputs.missing != ''
+        run: |
+          ARGS="${{ steps.meta.outputs.year }}"
           if [ "${{ github.event.inputs.verbose }}" = "true" ]; then
             ARGS="$ARGS --verbose"
           fi
-          Rscript scripts/win-probability.R $ARGS
+          if [ "${{ github.event.inputs.force }}" = "true" ]; then
+            ARGS="$ARGS --force"
+          fi
+          GAME_ARGS="--games $(echo '${{ steps.meta.outputs.missing }}' | sed 's/ /,/g')"
+          Rscript scripts/win-probability.R $ARGS $GAME_ARGS
 
-      - name: Upload charts
-        uses: actions/upload-artifact@v4
-        with:
-          name: win-probability-charts
-          path: data/**/*.png
+      - name: Create releases
+        if: steps.meta.outputs.missing != ''
+        run: |
+          VERSION="${{ steps.meta.outputs.version }}"
+          YEAR="${{ steps.meta.outputs.year }}"
+          for gid in ${{ steps.meta.outputs.missing }}; do
+            PNG="data/${YEAR}/wp-${gid}-v${VERSION}.png"
+            if [ ! -f "$PNG" ]; then
+              echo "Warning: $PNG not found, skipping release"
+              continue
+            fi
+
+            PIECES=($(echo "$gid" | tr '_' ' '))
+            AWAY="${PIECES[2]}"
+            HOME="${PIECES[3]}"
+            WEEK="${PIECES[1]}"
+
+            RELEASE_TAG="wp-${gid}-v${VERSION}"
+            gh release delete "$RELEASE_TAG" --yes 2>/dev/null || true
+            gh release create "$RELEASE_TAG" "$PNG" \
+              --title "WP: Week ${WEEK} - ${AWAY} at ${HOME} (v${VERSION})" \
+              --generate-notes
+            echo "Created release $RELEASE_TAG"
+          done
+
+      - name: Skip notification
+        if: steps.meta.outputs.missing == ''
+        run: echo "All charts already released for current version, nothing to do."
