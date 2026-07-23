@@ -1,0 +1,19 @@
+# Data files
+data/
+charts/
+*.rds
+*.csv
+
+# R history
+.Rhistory
+.RData
+.Rproj.user/
+
+# Tool configs
+opencode.json
+
+# OS files
+.DS_Store
+
+# Logs
+*.log
