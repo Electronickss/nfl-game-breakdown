@@ -37,6 +37,11 @@ make_mock_game <- function(
     home_score = rep(24, n_plays),
     away_score = rep(17, n_plays),
     team_logo_espn = rep("https://example.com/logo.png", n_plays),
+    team_color = rep("#000000", n_plays),
+    replay_or_challenge = sample(c("replay", "challenge", NA), n_plays, replace = TRUE, prob = c(0.05, 0.05, 0.9)),
+    td_player_name = NA_character_,
+    fumble = sample(0:1, n_plays, replace = TRUE, prob = c(0.98, 0.02)),
+    fumbled_1_player_name = NA_character_,
     poswins = 1,
     pass = sample(0:1, n_plays, replace = TRUE),
     rush = ifelse(pass == 0, 1, 0),
@@ -62,11 +67,11 @@ make_mock_game <- function(
 
 make_mock_logos <- function() {
   tribble(
-    ~team_abbr, ~team_logo_espn,
-    "KC", "https://example.com/kc.png",
-    "BAL", "https://example.com/bal.png",
-    "SF", "https://example.com/sf.png",
-    "BUF", "https://example.com/buf.png"
+    ~team_abbr, ~team_logo_espn, ~team_color,
+    "KC", "https://example.com/kc.png", "#E31837",
+    "BAL", "https://example.com/bal.png", "#241773",
+    "SF", "https://example.com/sf.png", "#AA0000",
+    "BUF", "https://example.com/buf.png", "#00338D"
   )
 }
 

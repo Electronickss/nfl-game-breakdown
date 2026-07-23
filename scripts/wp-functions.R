@@ -6,7 +6,7 @@ load_data <- function(start_year, end_year) {
 
 load_logos <- function() {
   nflfastR::teams_colors_logos |>
-    select(team_abbr, team_logo_espn)
+    select(team_abbr, team_logo_espn, team_color)
 }
 
 # ---- Play Classification Helpers --------------------------------------------
@@ -60,7 +60,7 @@ load_data_and_build <- function(start_year, end_year) {
       home_scoring_play, away_scoring_play, home_turnover_play, away_turnover_play,
       home_penalty, away_penalty, vegas_home_wp, field_goal_result, wp,
       interception, fumble_lost, is_home_team, home_score, away_score,
-      team_logo_espn
+      team_logo_espn, team_color, replay_or_challenge, td_player_name
     )
   return(pbp)
 }
@@ -139,6 +139,19 @@ plot_win_probability <- function(data, logos, foreground_color = rich_black, bac
     stringsAsFactors = FALSE
   ) |> inner_join(logos, by = "team_abbr")
 
+  team_colors <- logos |>
+    distinct(team_abbr, team_color)
+  team_colors <- setNames(team_colors$team_color, team_colors$team_abbr)
+
+  wp_line <- data |>
+    distinct(game_seconds_remaining, vegas_home_wp, posteam) |>
+    arrange(desc(game_seconds_remaining)) |>
+    mutate(
+      x_end = dplyr::lead(game_seconds_remaining),
+      y_end = dplyr::lead(vegas_home_wp)
+    ) |>
+    filter(!is.na(x_end))
+
   plot <- ggplot(data, aes(x = game_seconds_remaining, y = vegas_home_wp)) +
     geom_hline(yintercept = 0.5, color = grey, linewidth = 1) +
     geom_vline(xintercept = c(0, 15, 30, 45, 60) * 60, color = grey, linewidth = 0.25) +
@@ -146,18 +159,26 @@ plot_win_probability <- function(data, logos, foreground_color = rich_black, bac
     annotate("text", x = 43 * 60, y = 0.95, label = "Q2", color = grey, size = 2) +
     annotate("text", x = 28 * 60, y = 0.95, label = "Q3", color = grey, size = 2) +
     annotate("text", x = 13 * 60, y = 0.95, label = "Q4", color = grey, size = 2) +
-    geom_line(linewidth = 0.8) +
+    geom_segment(
+      data = wp_line,
+      aes(x = game_seconds_remaining, xend = x_end, y = vegas_home_wp, yend = y_end, color = posteam),
+      linewidth = 0.8
+    ) +
+    scale_color_manual(values = team_colors, guide = "none") +
     geom_rug(data = filter(data, home_scoring_play == 1), color = rich_black, sides = "t", linewidth = 1.0) +
     geom_rug(data = filter(data, away_scoring_play == 1), color = rich_black, sides = "b", linewidth = 1.0) +
     geom_rug(data = filter(data, home_turnover_play == 1), color = red, sides = "b", linewidth = 1.0) +
     geom_rug(data = filter(data, away_turnover_play == 1), color = red, sides = "t", linewidth = 1.0) +
     geom_rug(data = filter(data, home_penalty == 1), color = yellow, sides = "t", linewidth = 0.5) +
-    geom_rug(data = filter(data, away_penalty == 1), color = yellow, sides = "b", linewidth = 0.5)
+    geom_rug(data = filter(data, away_penalty == 1), color = yellow, sides = "b", linewidth = 0.5) +
+    geom_rug(data = filter(data, !is.na(replay_or_challenge)), color = purple, sides = "t", linewidth = 0.5)
 
   if (has_ggimage()) {
     plot <- plot +
       geom_image(data = logo_placement_data, aes(x = x, y = y, image = team_logo_espn), size = 0.08, asp = 16 / 9)
   }
+
+  version <- tryCatch(read_version(), error = function(e) "dev")
 
   plot <- plot +
     scale_x_reverse() +
@@ -170,6 +191,8 @@ plot_win_probability <- function(data, logos, foreground_color = rich_black, bac
       x = "Quarters",
       y = "Home Win Probability"
     )
+
+  plot <- add_version_watermark(plot, version)
 
   return(plot)
 }

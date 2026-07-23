@@ -19,6 +19,16 @@ main <- function() {
   VERBOSE <<- "--verbose" %in% args
   args <- args[args != "--verbose"]
 
+  force <- "--force" %in% args
+  args <- args[args != "--force"]
+
+  game_filter <- NULL
+  if ("--games" %in% args) {
+    idx <- which(args == "--games")
+    game_filter <- strsplit(args[idx + 1], ",")[[1]]
+    args <- args[-c(idx, idx + 1)]
+  }
+
   if (length(args) >= 1) {
     latest_year <- as.integer(args[1])
   } else if (month(now()) < 9) {
@@ -27,7 +37,8 @@ main <- function() {
     latest_year <- year(now())
   }
 
-  vlog("Season: {latest_year}\n")
+  version <- tryCatch(read_version(), error = function(e) "dev")
+  vlog("Season: {latest_year} (v{version})\n")
 
   dir.create("data", showWarnings = FALSE)
   dir.create("data/{latest_year}", showWarnings = FALSE)
@@ -36,10 +47,19 @@ main <- function() {
   pbp_data <- load_data_and_build(latest_year, latest_year)
 
   game_ids <- unique(pbp_data$game_id)
+  if (!is.null(game_filter)) {
+    game_ids <- game_ids[game_ids %in% game_filter]
+  }
 
   for (single_game_id in game_ids) {
     game_title_pieces <- strsplit(single_game_id, "_")[[1]]
     game_year <- game_title_pieces[1]
+
+    output_path <- glue("data/{game_year}/wp-{single_game_id}-v{version}.png")
+    if (!force && file.exists(output_path)) {
+      vlog("  Skipping {single_game_id}, already exists\n")
+      next
+    }
 
     tryCatch({
       vlog("Processing {single_game_id}...\n")
@@ -48,13 +68,8 @@ main <- function() {
 
       plot <- plot_win_probability(game_data, logos)
 
-      ggsave(
-        "data/{game_year}/wp-{single_game_id}.png",
-        plot = plot,
-        width = 6,
-        height = 4
-      )
-      vlog("  Saved wp-{single_game_id}.png\n")
+      ggsave(output_path, plot = plot, width = 6, height = 4)
+      vlog("  Saved {basename(output_path)}\n")
     }, error = function(e) {
       cat("  ERROR for {single_game_id}: {e$message}\n")
     })

@@ -96,24 +96,36 @@ test_that("plot_air_yards limits to 8 players", {
 })
 
 test_that("plot_rb_workload returns a ggplot object", {
+  load_logos_orig <- load_logos
+  load_logos <<- function() make_mock_logos()
+  on.exit(load_logos <<- load_logos_orig, add = TRUE)
   pbp <- make_mock_game()
   p <- plot_rb_workload(pbp, 1, 2024)
   expect_s3_class(p, "ggplot")
 })
 
 test_that("plot_rb_workload filters by game_id when provided", {
+  load_logos_orig <- load_logos
+  load_logos <<- function() make_mock_logos()
+  on.exit(load_logos <<- load_logos_orig, add = TRUE)
   pbp <- make_mock_game(game_id = "2024_01_KC_BAL")
   p <- plot_rb_workload(pbp, 1, 2024, game_id = "2024_01_KC_BAL")
   expect_s3_class(p, "ggplot")
 })
 
 test_that("plot_wrte_targets returns a ggplot object", {
+  load_logos_orig <- load_logos
+  load_logos <<- function() make_mock_logos()
+  on.exit(load_logos <<- load_logos_orig, add = TRUE)
   pbp <- make_mock_game()
   p <- plot_wrte_targets(pbp, 1, 2024)
   expect_s3_class(p, "ggplot")
 })
 
 test_that("plot_wrte_targets filters by game_id when provided", {
+  load_logos_orig <- load_logos
+  load_logos <<- function() make_mock_logos()
+  on.exit(load_logos <<- load_logos_orig, add = TRUE)
   pbp <- make_mock_game(game_id = "2024_01_KC_BAL")
   p <- plot_wrte_targets(pbp, 1, 2024, game_id = "2024_01_KC_BAL")
   expect_s3_class(p, "ggplot")
@@ -215,6 +227,9 @@ test_that("plot_air_yards handles single player", {
 })
 
 test_that("plot_rb_workload handles game with all rushes from one team", {
+  load_logos_orig <- load_logos
+  load_logos <<- function() make_mock_logos()
+  on.exit(load_logos <<- load_logos_orig, add = TRUE)
   pbp <- make_mock_game(n_plays = 200, week = 1)
   pbp <- pbp |> mutate(
     rush = 1,
@@ -230,6 +245,9 @@ test_that("plot_rb_workload handles game with all rushes from one team", {
 })
 
 test_that("plot_wrte_targets handles game with no targets", {
+  load_logos_orig <- load_logos
+  load_logos <<- function() make_mock_logos()
+  on.exit(load_logos <<- load_logos_orig, add = TRUE)
   pbp <- make_mock_game(n_plays = 200, week = 1)
   pbp <- pbp |> mutate(
     pass = 0,

@@ -37,7 +37,7 @@ jobs:
         run: |
           Rscript -e '
           options(repos = c(CRAN = "https://cloud.r-project.org"))
-          install.packages(c("testthat", "covr", "dplyr", "ggplot2", "glue", "scales"))
+          install.packages(c("testthat", "covr", "dplyr", "ggplot2", "glue", "scales", "ggrepel"))
           '
 
       - name: Run tests

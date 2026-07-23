@@ -19,11 +19,15 @@ main <- function() {
   VERBOSE <<- "--verbose" %in% args
   args <- args[args != "--verbose"]
 
+  force <- "--force" %in% args
+  args <- args[args != "--force"]
+
   year <- if (length(args) >= 1) as.integer(args[1]) else 2025
   week <- if (length(args) >= 2) as.integer(args[2]) else 1
   team <- if (length(args) >= 3 && nchar(args[3]) > 0) args[3] else ""
 
-  vlog("Season: {year}, Week: {week}, Team: {if (nchar(team) > 0) team else 'all'}\n")
+  version <- tryCatch(read_version(), error = function(e) "dev")
+  vlog("Season: {year}, Week: {week}, Team: {if (nchar(team) > 0) team else 'all'} (v{version})\n")
 
   dir.create("charts", showWarnings = FALSE)
 
@@ -44,18 +48,28 @@ main <- function() {
     vlog("Processing {t}...\n")
     tryCatch({
       team_stats <- get_team_stats(pbp, t, week)
-      summary_plot <- plot_team_summary(team_stats, t, week, year)
-      ggsave("charts/{t}-w{week}-summary.png", summary_plot, width = 8, height = 6, dpi = 150)
-      vlog("  Saved {t}-w{week}-summary.png\n")
+
+      summary_path <- glue("charts/{t}-w{week}-summary-v{version}.png")
+      if (force || !file.exists(summary_path)) {
+        summary_plot <- plot_team_summary(team_stats, t, week, year)
+        ggsave(summary_path, summary_plot, width = 8, height = 6, dpi = 150)
+        vlog("  Saved {basename(summary_path)}\n")
+      }
 
       if (nrow(team_stats$receiving) > 0) {
-        target_plot <- plot_target_share(team_stats$receiving, t)
-        ggsave("charts/{t}-w{week}-targets.png", target_plot, width = 8, height = 6, dpi = 150)
-        vlog("  Saved {t}-w{week}-targets.png\n")
+        target_path <- glue("charts/{t}-w{week}-targets-v{version}.png")
+        if (force || !file.exists(target_path)) {
+          target_plot <- plot_target_share(team_stats$receiving, t)
+          ggsave(target_path, target_plot, width = 8, height = 6, dpi = 150)
+          vlog("  Saved {basename(target_path)}\n")
+        }
 
-        air_plot <- plot_air_yards(team_stats$receiving, t)
-        ggsave("charts/{t}-w{week}-airyards.png", air_plot, width = 8, height = 6, dpi = 150)
-        vlog("  Saved {t}-w{week}-airyards.png\n")
+        air_path <- glue("charts/{t}-w{week}-airyards-v{version}.png")
+        if (force || !file.exists(air_path)) {
+          air_plot <- plot_air_yards(team_stats$receiving, t)
+          ggsave(air_path, air_plot, width = 8, height = 6, dpi = 150)
+          vlog("  Saved {basename(air_path)}\n")
+        }
       }
     }, error = function(e) {
       cat("Error processing {t}: {e$message}\n")
@@ -68,13 +82,19 @@ main <- function() {
 
   for (gid in game_ids) {
     tryCatch({
-      rb_plot <- plot_rb_workload(pbp, week, year, game_id = gid)
-      ggsave("charts/rb-workload-w{week}-{gid}.png", rb_plot, width = 10, height = 6, dpi = 150)
-      vlog("  Saved rb-workload-w{week}-{gid}.png\n")
+      rb_path <- glue("charts/rb-workload-w{week}-{gid}-v{version}.png")
+      if (force || !file.exists(rb_path)) {
+        rb_plot <- plot_rb_workload(pbp, week, year, game_id = gid)
+        ggsave(rb_path, rb_plot, width = 10, height = 6, dpi = 150)
+        vlog("  Saved {basename(rb_path)}\n")
+      }
 
-      wrte_plot <- plot_wrte_targets(pbp, week, year, game_id = gid)
-      ggsave("charts/wrte-targets-w{week}-{gid}.png", wrte_plot, width = 10, height = 6, dpi = 150)
-      vlog("  Saved wrte-targets-w{week}-{gid}.png\n")
+      wrte_path <- glue("charts/wrte-targets-w{week}-{gid}-v{version}.png")
+      if (force || !file.exists(wrte_path)) {
+        wrte_plot <- plot_wrte_targets(pbp, week, year, game_id = gid)
+        ggsave(wrte_path, wrte_plot, width = 10, height = 6, dpi = 150)
+        vlog("  Saved {basename(wrte_path)}\n")
+      }
     }, error = function(e) {
       cat("Error generating workload charts for {gid}: {e$message}\n")
     })

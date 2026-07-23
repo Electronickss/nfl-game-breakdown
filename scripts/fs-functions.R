@@ -177,6 +177,74 @@ plot_air_yards <- function(receiving, team) {
   return(plot)
 }
 
+# ---- Workload Chart Helpers -------------------------------------------------
+
+build_wp_segments <- function(game, logos) {
+  team_colors <- logos |>
+    distinct(team_abbr, team_color)
+  team_colors <- setNames(team_colors$team_color, team_colors$team_abbr)
+
+  wp_line <- game |>
+    distinct(game_seconds_remaining, vegas_home_wp, posteam) |>
+    arrange(desc(game_seconds_remaining)) |>
+    mutate(
+      x_end = dplyr::lead(game_seconds_remaining),
+      y_end = dplyr::lead(vegas_home_wp)
+    ) |>
+    filter(!is.na(x_end))
+
+  list(wp_line = wp_line, team_colors = team_colors)
+}
+
+build_touch_data <- function(game, touch_types) {
+  bind_rows(touch_types) |>
+    select(game_seconds_remaining, vegas_home_wp, player, posteam, touch_type)
+}
+
+assign_player_colors <- function(players) {
+  palette <- c("#E41A1C", "#377EB8", "#4DAF4A", "#984EA3", "#FF7F00",
+               "#A65628", "#F781BF", "#999999", "#66C2A5", "#FC8D62")
+  n <- length(players)
+  setNames(palette[seq_len(n) %% length(palette) + 1], players)
+}
+
+get_player_team_colors <- function(touch_data, logos) {
+  team_map <- logos |>
+    distinct(team_abbr, team_color)
+  team_map <- setNames(team_map$team_color, team_map$team_abbr)
+  touch_data$player_team_color <- team_map[touch_data$posteam]
+  touch_data
+}
+
+add_touch_labels <- function(plot, touch_data, player_team_colors) {
+  first_touches <- touch_data |>
+    group_by(player) |>
+    slice_min(game_seconds_remaining, n = 1) |>
+    ungroup()
+
+  first_touches <- get_player_team_colors(first_touches, player_team_colors)
+
+  if (nrow(first_touches) > 0 && requireNamespace("ggrepel", quietly = TRUE)) {
+    plot +
+      ggrepel::geom_text_repel(
+        data = first_touches,
+        aes(x = game_seconds_remaining, y = vegas_home_wp, label = player, color = player),
+        size = 2.5, fontface = "bold", show.legend = FALSE,
+        direction = "y", box.padding = 0.3, point.padding = 0.5,
+        segment.color = "grey50", segment.size = 0.3
+      )
+  } else if (nrow(first_touches) > 0) {
+    plot +
+      geom_text(
+        data = first_touches,
+        aes(x = game_seconds_remaining, y = vegas_home_wp, label = player, color = player),
+        size = 2.5, fontface = "bold", vjust = -1, show.legend = FALSE
+      )
+  } else {
+    plot
+  }
+}
+
 # ---- RB Workload Chart ------------------------------------------------------
 
 plot_rb_workload <- function(pbp, week, year, game_id = NULL) {
@@ -190,27 +258,31 @@ plot_rb_workload <- function(pbp, week, year, game_id = NULL) {
 
   home_team <- game$home_team[1]
   away_team <- game$away_team[1]
+  logos <- load_logos()
 
-  wp_line <- game |>
-    distinct(game_seconds_remaining, vegas_home_wp) |>
-    arrange(desc(game_seconds_remaining))
+  wp <- build_wp_segments(game, logos)
 
   rb_rushes <- game |>
     filter(rush == 1, !is.na(rusher_player_name)) |>
-    mutate(touch_type = "Rush") |>
-    select(game_seconds_remaining, vegas_home_wp, player = rusher_player_name, posteam, touch_type)
+    mutate(touch_type = "Rush", player = rusher_player_name) |>
+    select(game_seconds_remaining, vegas_home_wp, player, posteam, touch_type)
 
   rb_targets <- game |>
-    filter(pass == 1, !is.na(rusher_player_name), rush_attempt == 1) |>
-    mutate(touch_type = "Target (RB)") |>
-    select(game_seconds_remaining, vegas_home_wp, player = rusher_player_name, posteam, touch_type)
+    filter(pass == 1, !is.na(receiver_player_name), rush_attempt == 1) |>
+    mutate(touch_type = "Target", player = receiver_player_name) |>
+    select(game_seconds_remaining, vegas_home_wp, player, posteam, touch_type)
 
-  rb_pass_att <- game |>
-    filter(pass == 1, !is.na(rusher_player_name), pass_attempt == 1) |>
-    mutate(touch_type = "Pass Att") |>
-    select(game_seconds_remaining, vegas_home_wp, player = rusher_player_name, posteam, touch_type)
+  rb_fumbles <- game |>
+    filter(fumble == 1, !is.na(fumbled_1_player_name)) |>
+    mutate(touch_type = "Fumble", player = fumbled_1_player_name) |>
+    select(game_seconds_remaining, vegas_home_wp, player, posteam, touch_type)
 
-  all_touches <- bind_rows(rb_rushes, rb_targets, rb_pass_att)
+  rb_scores <- game |>
+    filter(!is.na(td_player_name)) |>
+    mutate(touch_type = "Score", player = td_player_name) |>
+    select(game_seconds_remaining, vegas_home_wp, player, posteam, touch_type)
+
+  all_touches <- build_touch_data(game, list(rb_rushes, rb_targets, rb_fumbles, rb_scores))
 
   top_rbs <- all_touches |>
     count(posteam, player, sort = TRUE) |>
@@ -221,43 +293,36 @@ plot_rb_workload <- function(pbp, week, year, game_id = NULL) {
   all_touches <- all_touches |>
     inner_join(top_rbs, by = c("posteam", "player"))
 
-  top_rb_names <- top_rbs$player
-  player_colors <- setNames(
-    rep(c("#E41A1C", "#377EB8", "#4DAF4A", "#984EA3"), 2)[1:length(top_rb_names)],
-    top_rb_names
-  )
+  player_colors <- assign_player_colors(top_rbs$player)
+
+  touch_shapes <- c("Rush" = 16, "Target" = 17, "Fumble" = 18, "Score" = 8)
+  touch_sizes <- c("Rush" = 2, "Target" = 2, "Fumble" = 2.5, "Score" = 3)
 
   game_title <- glue("{away_team} at {home_team} - Week {week}, {year}")
 
-  plot <- ggplot(wp_line, aes(x = game_seconds_remaining, y = vegas_home_wp)) +
+  plot <- ggplot(wp$wp_line, aes(x = game_seconds_remaining, y = vegas_home_wp)) +
     geom_hline(yintercept = 0.5, color = grey, linewidth = 0.5) +
     geom_vline(xintercept = c(15, 30, 45) * 60, color = grey, linewidth = 0.25) +
     annotate("text", x = 58 * 60, y = 0.95, label = "Q1", color = grey, size = 2) +
     annotate("text", x = 43 * 60, y = 0.95, label = "Q2", color = grey, size = 2) +
     annotate("text", x = 28 * 60, y = 0.95, label = "Q3", color = grey, size = 2) +
     annotate("text", x = 13 * 60, y = 0.95, label = "Q4", color = grey, size = 2) +
-    geom_line(linewidth = 0.8) +
-    geom_rug(
-      data = all_touches |> filter(touch_type == "Rush"),
-      aes(x = game_seconds_remaining, color = player),
-      sides = "b", linewidth = 0.8
+    geom_segment(
+      data = wp$wp_line,
+      aes(x = game_seconds_remaining, xend = x_end, y = vegas_home_wp, yend = y_end, color = posteam),
+      linewidth = 0.8
     ) +
-    geom_rug(
-      data = all_touches |> filter(touch_type == "Target (RB)"),
-      aes(x = game_seconds_remaining, color = player),
-      sides = "t", linewidth = 0.8
-    ) +
+    scale_color_manual(values = wp$team_colors, guide = "none") +
     geom_point(
-      data = all_touches |> filter(touch_type == "Pass Att"),
-      aes(x = game_seconds_remaining, y = vegas_home_wp, color = player),
-      shape = 4, size = 2, stroke = 1.5
+      data = all_touches,
+      aes(x = game_seconds_remaining, y = vegas_home_wp, shape = touch_type),
+      color = "grey30", size = 2, stroke = 0.5
     ) +
-    scale_color_manual(values = player_colors, name = "Player") +
+    scale_shape_manual(values = touch_shapes, name = "Touch Type") +
     scale_x_reverse() +
     scale_y_continuous(labels = percent, limits = c(0, 1)) +
     labs(
       title = glue("RB Workload: {game_title}"),
-      subtitle = "Bottom = Rushes | Top = Targets | X = Pass Attempts",
       caption = "Data from nflfastR",
       x = "Game Clock",
       y = "Home Win Probability"
@@ -268,6 +333,11 @@ plot_rb_workload <- function(pbp, week, year, game_id = NULL) {
       axis.text.x = element_blank(),
       legend.position = "bottom"
     )
+
+  plot <- add_touch_labels(plot, all_touches, logos)
+
+  version <- tryCatch(read_version(), error = function(e) "dev")
+  plot <- add_version_watermark(plot, version)
 
   return(plot)
 }
@@ -285,27 +355,26 @@ plot_wrte_targets <- function(pbp, week, year, game_id = NULL) {
 
   home_team <- game$home_team[1]
   away_team <- game$away_team[1]
+  logos <- load_logos()
 
-  wp_line <- game |>
-    distinct(game_seconds_remaining, vegas_home_wp) |>
-    arrange(desc(game_seconds_remaining))
+  wp <- build_wp_segments(game, logos)
 
   wrte_targets <- game |>
     filter(pass == 1, !is.na(receiver_player_name)) |>
-    mutate(touch_type = "Target") |>
-    select(game_seconds_remaining, vegas_home_wp, player = receiver_player_name, posteam, touch_type)
+    mutate(touch_type = "Target", player = receiver_player_name) |>
+    select(game_seconds_remaining, vegas_home_wp, player, posteam, touch_type)
 
-  wrte_rushes <- game |>
-    filter(rush == 1, !is.na(receiver_player_name)) |>
-    mutate(touch_type = "Rush") |>
-    select(game_seconds_remaining, vegas_home_wp, player = receiver_player_name, posteam, touch_type)
+  wrte_fumbles <- game |>
+    filter(fumble == 1, !is.na(fumbled_1_player_name)) |>
+    mutate(touch_type = "Fumble", player = fumbled_1_player_name) |>
+    select(game_seconds_remaining, vegas_home_wp, player, posteam, touch_type)
 
-  wrte_pass_att <- game |>
-    filter(pass == 1, !is.na(receiver_player_name), pass_attempt == 1) |>
-    mutate(touch_type = "Pass Att") |>
-    select(game_seconds_remaining, vegas_home_wp, player = receiver_player_name, posteam, touch_type)
+  wrte_scores <- game |>
+    filter(!is.na(td_player_name)) |>
+    mutate(touch_type = "Score", player = td_player_name) |>
+    select(game_seconds_remaining, vegas_home_wp, player, posteam, touch_type)
 
-  all_touches <- bind_rows(wrte_targets, wrte_rushes, wrte_pass_att)
+  all_touches <- build_touch_data(game, list(wrte_targets, wrte_fumbles, wrte_scores))
 
   top_wrte <- all_touches |>
     filter(touch_type == "Target") |>
@@ -317,43 +386,36 @@ plot_wrte_targets <- function(pbp, week, year, game_id = NULL) {
   all_touches <- all_touches |>
     inner_join(top_wrte, by = c("posteam", "player"))
 
-  top_names <- top_wrte$player
-  player_colors <- setNames(
-    rep(c("#E41A1C", "#377EB8", "#4DAF4A", "#984EA3", "#FF7F00"), 2)[1:length(top_names)],
-    top_names
-  )
+  player_colors <- assign_player_colors(top_wrte$player)
+
+  touch_shapes <- c("Target" = 17, "Fumble" = 18, "Score" = 8)
+  touch_sizes <- c("Target" = 2, "Fumble" = 2.5, "Score" = 3)
 
   game_title <- glue("{away_team} at {home_team} - Week {week}, {year}")
 
-  plot <- ggplot(wp_line, aes(x = game_seconds_remaining, y = vegas_home_wp)) +
+  plot <- ggplot(wp$wp_line, aes(x = game_seconds_remaining, y = vegas_home_wp)) +
     geom_hline(yintercept = 0.5, color = grey, linewidth = 0.5) +
     geom_vline(xintercept = c(15, 30, 45) * 60, color = grey, linewidth = 0.25) +
     annotate("text", x = 58 * 60, y = 0.95, label = "Q1", color = grey, size = 2) +
     annotate("text", x = 43 * 60, y = 0.95, label = "Q2", color = grey, size = 2) +
     annotate("text", x = 28 * 60, y = 0.95, label = "Q3", color = grey, size = 2) +
     annotate("text", x = 13 * 60, y = 0.95, label = "Q4", color = grey, size = 2) +
-    geom_line(linewidth = 0.8) +
-    geom_rug(
-      data = all_touches |> filter(touch_type == "Target"),
-      aes(x = game_seconds_remaining, color = player),
-      sides = "t", linewidth = 0.8
+    geom_segment(
+      data = wp$wp_line,
+      aes(x = game_seconds_remaining, xend = x_end, y = vegas_home_wp, yend = y_end, color = posteam),
+      linewidth = 0.8
     ) +
-    geom_rug(
-      data = all_touches |> filter(touch_type == "Rush"),
-      aes(x = game_seconds_remaining, color = player),
-      sides = "b", linewidth = 0.8
-    ) +
+    scale_color_manual(values = wp$team_colors, guide = "none") +
     geom_point(
-      data = all_touches |> filter(touch_type == "Pass Att"),
-      aes(x = game_seconds_remaining, y = vegas_home_wp, color = player),
-      shape = 4, size = 2, stroke = 1.5
+      data = all_touches,
+      aes(x = game_seconds_remaining, y = vegas_home_wp, shape = touch_type),
+      color = "grey30", size = 2, stroke = 0.5
     ) +
-    scale_color_manual(values = player_colors, name = "Player") +
+    scale_shape_manual(values = touch_shapes, name = "Touch Type") +
     scale_x_reverse() +
     scale_y_continuous(labels = percent, limits = c(0, 1)) +
     labs(
       title = glue("WR/TE Targets: {game_title}"),
-      subtitle = "Top = Targets | Bottom = Rushes | X = Pass Attempts",
       caption = "Data from nflfastR",
       x = "Game Clock",
       y = "Home Win Probability"
@@ -364,6 +426,11 @@ plot_wrte_targets <- function(pbp, week, year, game_id = NULL) {
       axis.text.x = element_blank(),
       legend.position = "bottom"
     )
+
+  plot <- add_touch_labels(plot, all_touches, logos)
+
+  version <- tryCatch(read_version(), error = function(e) "dev")
+  plot <- add_version_watermark(plot, version)
 
   return(plot)
 }
