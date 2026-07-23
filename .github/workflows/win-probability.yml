@@ -86,6 +86,7 @@ jobs:
           fi
           echo "year=$YEAR" >> "$GITHUB_OUTPUT"
 
+          export WP_YEAR="$YEAR"
           GAME_IDS=$(Rscript -e '
           options(nflreadr.cache = "filesystem")
           library(nflfastR)
@@ -96,7 +97,6 @@ jobs:
           game_ids <- unique(pbp$game_id[pbp$week == current_week])
           cat(paste(game_ids, collapse = " "))
           ' 2>/dev/null)
-          export WP_YEAR="$YEAR"
 
           MISSING=""
           for gid in $GAME_IDS; do
