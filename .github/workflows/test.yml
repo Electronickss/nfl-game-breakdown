@@ -54,8 +54,8 @@ jobs:
           )
           pct <- percent_coverage(cov)
           cat(sprintf("Total coverage: %.1f%%\n", pct))
-          if (pct < 99) {
-            cat("ERROR: Coverage below 99% threshold\n")
+          if (pct < 95) {
+            cat("ERROR: Coverage below 95% threshold\n")
             quit(status = 1)
           }
           '

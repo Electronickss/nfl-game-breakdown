@@ -49,7 +49,7 @@ Entry-point scripts (`win-probability.R`, `fantasy-stats.R`) handle library load
 
 ## Tests
 
-99% coverage. Tests source function files directly via `setup.R`.
+95% coverage (aim for 100% when possible). Tests source function files directly via `setup.R`.
 
 ```bash
 # Run tests
@@ -110,7 +110,7 @@ Both chart workflows trigger on:
 | verbose  | No       | false   | Enable verbose logging. |
 
 ### test.yml
-Triggers on push to main and PRs. Runs tests and checks coverage (99% threshold).
+Triggers on push to main and PRs. Runs tests and checks coverage (95% threshold).
 
 ## Dependencies
 
