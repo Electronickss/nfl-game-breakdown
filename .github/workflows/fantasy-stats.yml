@@ -53,7 +53,7 @@ jobs:
         run: |
           Rscript -e '
           options(repos = c(CRAN = "https://cloud.r-project.org"))
-          install.packages(c("nflfastR", "tidyverse", "scales", "ggimage", "lubridate", "future", "future.apply"))
+          install.packages(c("nflfastR", "dplyr", "ggplot2", "glue", "scales", "future", "future.apply"))
           '
 
       - name: Cache nflreadr data

@@ -2,18 +2,17 @@ if (!interactive()) {
   options(show.error.locations = TRUE)
   options(nflreadr.cache = "filesystem")
   library(nflfastR)
-  library(tidyverse)
+  library(dplyr)
+  library(ggplot2)
   library(scales)
   library(ggimage)
+  library(glue)
   library(lubridate)
   options(scipen = 9999)
 }
 
+source("scripts/helpers.R")
 source("scripts/wp-functions.R")
-
-vlog <- function(...) {
-  if (VERBOSE) cat(str_interp(...))
-}
 
 main <- function() {
   args <- commandArgs(trailingOnly = TRUE)
@@ -28,10 +27,10 @@ main <- function() {
     latest_year <- year(now())
   }
 
-  vlog("Season: ${latest_year}\n")
+  vlog("Season: {latest_year}\n")
 
   dir.create("data", showWarnings = FALSE)
-  dir.create(str_interp("data/${latest_year}"), showWarnings = FALSE)
+  dir.create("data/{latest_year}", showWarnings = FALSE)
 
   logos <- load_logos()
   pbp_data <- load_data_and_build(latest_year, latest_year)
@@ -43,21 +42,21 @@ main <- function() {
     game_year <- game_title_pieces[1]
 
     tryCatch({
-      vlog("Processing ${single_game_id}...\n")
+      vlog("Processing {single_game_id}...\n")
       game_data <- filter(pbp_data, game_id == single_game_id)
-      vlog("  ${nrow(game_data)} rows of data\n")
+      vlog("  {nrow(game_data)} rows of data\n")
 
       plot <- plot_win_probability(game_data, logos)
 
       ggsave(
-        str_interp("data/${game_year}/wp-${single_game_id}.png"),
+        "data/{game_year}/wp-{single_game_id}.png",
         plot = plot,
         width = 6,
         height = 4
       )
-      vlog("  Saved wp-${single_game_id}.png\n")
+      vlog("  Saved wp-{single_game_id}.png\n")
     }, error = function(e) {
-      cat(str_interp("  ERROR for ${single_game_id}: ${e$message}\n"))
+      cat("  ERROR for {single_game_id}: {e$message}\n")
     })
   }
 }

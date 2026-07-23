@@ -27,15 +27,15 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ env.R_LIBS_USER }}
-          key: r-packages-${{ runner.os }}-${{ hashFiles('DESCRIPTION') }}
+          key: r-packages-${{ runner.os }}-test-${{ hashFiles('.github/workflows/test.yml') }}
           restore-keys: |
-            r-packages-${{ runner.os }}-
+            r-packages-${{ runner.os }}-test-
 
       - name: Install dependencies
         run: |
           Rscript -e '
           options(repos = c(CRAN = "https://cloud.r-project.org"))
-          install.packages(c("testthat", "covr", "nflfastR", "tidyverse", "scales", "ggimage", "lubridate", "future", "future.apply"))
+          install.packages(c("testthat", "covr", "dplyr", "ggplot2", "glue", "scales", "ggimage"))
           '
 
       - name: Run tests

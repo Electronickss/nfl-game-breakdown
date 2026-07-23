@@ -101,9 +101,21 @@ test_that("plot_rb_workload returns a ggplot object", {
   expect_s3_class(p, "ggplot")
 })
 
+test_that("plot_rb_workload filters by game_id when provided", {
+  pbp <- make_mock_game(game_id = "2024_01_KC_BAL")
+  p <- plot_rb_workload(pbp, 1, 2024, game_id = "2024_01_KC_BAL")
+  expect_s3_class(p, "ggplot")
+})
+
 test_that("plot_wrte_targets returns a ggplot object", {
   pbp <- make_mock_game()
   p <- plot_wrte_targets(pbp, 1, 2024)
+  expect_s3_class(p, "ggplot")
+})
+
+test_that("plot_wrte_targets filters by game_id when provided", {
+  pbp <- make_mock_game(game_id = "2024_01_KC_BAL")
+  p <- plot_wrte_targets(pbp, 1, 2024, game_id = "2024_01_KC_BAL")
   expect_s3_class(p, "ggplot")
 })
 
@@ -204,7 +216,7 @@ test_that("plot_air_yards handles single player", {
 
 test_that("plot_rb_workload handles game with all rushes from one team", {
   pbp <- make_mock_game(n_plays = 200, week = 1)
-  pbp <- pbp %>% mutate(
+  pbp <- pbp |> mutate(
     rush = 1,
     pass = 0,
     rush_attempt = 1,
@@ -219,7 +231,7 @@ test_that("plot_rb_workload handles game with all rushes from one team", {
 
 test_that("plot_wrte_targets handles game with no targets", {
   pbp <- make_mock_game(n_plays = 200, week = 1)
-  pbp <- pbp %>% mutate(
+  pbp <- pbp |> mutate(
     pass = 0,
     pass_attempt = 0,
     complete_pass = 0,
