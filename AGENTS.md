@@ -27,7 +27,7 @@ nfl-game-breakdown/
 ## Scripts
 
 ### win-probability.R
-- Loads nflfastR PBP data 2009-present
+- Loads nflfastR PBP data for a single season (not all years)
 - Generates win probability charts for every game in a season
 - Uses Vegas home WP (`vegas_home_wp`)
 - Rug marks: scoring (black), turnovers (red), penalties (yellow)
@@ -36,6 +36,7 @@ nfl-game-breakdown/
 
 ### fantasy-stats.R
 - Generates per-team charts: summary, target share, air yards, RB workload, WR/TE targets
+- Processes teams in parallel using `future::future_lapply` (2 workers)
 - CLI: `Rscript scripts/fantasy-stats.R [year] [week] [team] [--verbose]`
 - If `team` is omitted or empty, processes all teams from the schedule
 - Output: `charts/{TEAM}-w{week}-*.png`, `charts/rb-workload-w{week}.png`, `charts/wrte-targets-w{week}.png`
@@ -79,14 +80,17 @@ Rscript scripts/fantasy-stats.R 2025 1 BAL --verbose
 
 ## Dependencies
 
-R packages: nflfastR, nflreadr, tidyverse, scales, ggimage, lubridate
+R packages: nflfastR, nflreadr, tidyverse, scales, ggimage, lubridate, future, future.apply
 System: libmagick++-dev (for ggimage/magick)
 
 ## Conventions
 
 - R version: 4.3.1 (pinned in workflows)
 - CRAN mirror: `https://cloud.r-project.org`
-- Workflows use `Rscript` with `-e` for inline R, or run scripts directly
+- nflreadr caching: `options(nflreadr.cache = "filesystem")` — data cached in `~/.cache/nflreadr`, persisted between CI runs via `actions/cache`
+- R package caching: via `actions/cache` on `$R_LIBS_USER`
+- Parallel processing: `future::future_lapply` with `plan(multisession, workers = 2)` for team charts
+- Workflows use `Rscript` to run scripts directly
 - All chart output is gitignored; artifacts are uploaded via `actions/upload-artifact`
 - Error handling: `tryCatch` with `cat()` for errors (always visible). Progress uses `vlog()` (verbose only).
 

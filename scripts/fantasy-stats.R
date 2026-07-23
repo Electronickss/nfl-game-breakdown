@@ -1,9 +1,12 @@
 options(show.error.locations = TRUE)
+options(nflreadr.cache = "filesystem")
 library(nflfastR)
 library(tidyverse)
 library(scales)
 library(ggimage)
 library(lubridate)
+library(future)
+library(future.apply)
 
 options(scipen = 9999)
 
@@ -387,7 +390,11 @@ if (nchar(team) > 0) {
   teams <- unique(c(schedule$home_team, schedule$away_team))
 }
 
-for (t in teams) {
+vlog("Generating charts for ${length(teams)} teams...\n")
+
+plan(multisession, workers = 2)
+
+process_team <- function(t) {
   vlog("Processing ${t}...\n")
   tryCatch({
     team_stats <- get_team_stats(pbp, t, week)
@@ -408,6 +415,8 @@ for (t in teams) {
     cat(str_interp("Error processing ${t}: ${e$message}\n"))
   })
 }
+
+future_lapply(teams, process_team, future.seed = TRUE)
 
 rb_plot <- plot_rb_workload(pbp, week, year)
 ggsave(str_interp("charts/rb-workload-w${week}.png"), rb_plot, width = 10, height = 6, dpi = 150)

@@ -1,4 +1,5 @@
 options(show.error.locations = TRUE)
+options(nflreadr.cache = "filesystem")
 library(nflfastR)
 library(tidyverse)
 library(scales)
@@ -177,19 +178,16 @@ if (length(args) >= 1) {
 } else {
   latest_year <- year(now())
 }
-earliest_year <- 2009
 
-vlog("Season: ${earliest_year}-${latest_year}\n")
+vlog("Season: ${latest_year}\n")
 
 dir.create("data", showWarnings = FALSE)
-for (year_var in seq(earliest_year, latest_year, by = 1)) {
-  dir.create(str_interp("data/${year_var}"), showWarnings = FALSE)
-}
+dir.create(str_interp("data/${latest_year}"), showWarnings = FALSE)
 
 logos <- load_logos()
-pbp_data <- load_data_and_build(earliest_year, latest_year)
+pbp_data <- load_data_and_build(latest_year, latest_year)
 
-game_ids <- unique(filter(pbp_data["game_id"], grepl(latest_year, game_id)))$game_id
+game_ids <- unique(pbp_data$game_id)
 
 for (single_game_id in game_ids) {
   game_title_pieces <- strsplit(single_game_id, "_")[[1]]
