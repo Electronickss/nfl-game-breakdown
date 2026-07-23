@@ -163,6 +163,13 @@ plot_win_probability <- function(data, logos, foreground_color = rich_black, bac
 }
 
 args <- commandArgs(trailingOnly = TRUE)
+VERBOSE <- "--verbose" %in% args
+args <- args[args != "--verbose"]
+
+vlog <- function(...) {
+  if (VERBOSE) cat(str_interp(...))
+}
+
 if (length(args) >= 1) {
   latest_year <- as.integer(args[1])
 } else if (month(now()) < 9) {
@@ -171,6 +178,8 @@ if (length(args) >= 1) {
   latest_year <- year(now())
 }
 earliest_year <- 2009
+
+vlog("Season: ${earliest_year}-${latest_year}\n")
 
 dir.create("data", showWarnings = FALSE)
 for (year_var in seq(earliest_year, latest_year, by = 1)) {
@@ -187,9 +196,9 @@ for (single_game_id in game_ids) {
   game_year <- game_title_pieces[1]
 
   tryCatch({
-    cat(str_interp("Processing ${single_game_id}...\n"))
+    vlog("Processing ${single_game_id}...\n")
     game_data <- filter(pbp_data, game_id == single_game_id)
-    cat(str_interp("  ${nrow(game_data)} rows of data\n"))
+    vlog("  ${nrow(game_data)} rows of data\n")
 
     plot <- plot_win_probability(game_data, logos)
 
@@ -199,7 +208,7 @@ for (single_game_id in game_ids) {
       width = 6,
       height = 4
     )
-    cat(str_interp("  Saved wp-${single_game_id}.png\n"))
+    vlog("  Saved wp-${single_game_id}.png\n")
   }, error = function(e) {
     cat(str_interp("  ERROR for ${single_game_id}: ${e$message}\n"))
   })

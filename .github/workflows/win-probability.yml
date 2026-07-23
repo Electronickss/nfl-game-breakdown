@@ -10,6 +10,11 @@ on:
         description: 'NFL season year (e.g. 2025). Leave empty to auto-detect.'
         required: false
         default: ''
+      verbose:
+        description: 'Enable verbose output'
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   win-probability:
@@ -39,6 +44,9 @@ jobs:
           ARGS=""
           if [ -n "${{ github.event.inputs.year }}" ]; then
             ARGS="${{ github.event.inputs.year }}"
+          fi
+          if [ "${{ github.event.inputs.verbose }}" = "true" ]; then
+            ARGS="$ARGS --verbose"
           fi
           Rscript scripts/win-probability.R $ARGS
 

@@ -18,6 +18,11 @@ on:
         description: 'Team abbreviation (optional, e.g. BAL). Leave empty for all teams.'
         required: false
         default: ''
+      verbose:
+        description: 'Enable verbose output'
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   fantasy-stats:
@@ -45,17 +50,22 @@ jobs:
       - name: Determine season and week
         id: meta
         run: |
-          # TODO: auto-detect week once NFL 2026 season schedule is available.
-          # Week 1 2026 starts ~Sep 8 2026. Until then, default to 2025.
           YEAR="${{ github.event.inputs.year || '2025' }}"
           WEEK="${{ github.event.inputs.week || '1' }}"
           TEAM="${{ github.event.inputs.team || '' }}"
+          VERBOSE="${{ github.event.inputs.verbose || 'false' }}"
           echo "year=$YEAR" >> "$GITHUB_OUTPUT"
           echo "week=$WEEK" >> "$GITHUB_OUTPUT"
           echo "team=$TEAM" >> "$GITHUB_OUTPUT"
+          echo "verbose=$VERBOSE" >> "$GITHUB_OUTPUT"
 
       - name: Generate fantasy stats charts
-        run: Rscript scripts/fantasy-stats.R "${{ steps.meta.outputs.year }}" "${{ steps.meta.outputs.week }}" "${{ steps.meta.outputs.team }}"
+        run: |
+          ARGS="${{ steps.meta.outputs.year }} ${{ steps.meta.outputs.week }} ${{ steps.meta.outputs.team }}"
+          if [ "${{ steps.meta.outputs.verbose }}" = "true" ]; then
+            ARGS="$ARGS --verbose"
+          fi
+          Rscript scripts/fantasy-stats.R $ARGS
 
       - name: Upload charts
         uses: actions/upload-artifact@v4
