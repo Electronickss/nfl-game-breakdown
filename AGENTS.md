@@ -135,6 +135,7 @@ System: libmagick++-dev (for ggimage/magick)
 
 - Direct pushes to `main` are blocked (branch protection)
 - All changes go through PRs
+- PRs require the `test` status check to pass before merging
 - No review requirements (merge when ready and CI passes)
 
 ## TODO
