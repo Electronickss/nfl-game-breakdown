@@ -37,9 +37,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ env.R_LIBS_USER }}
-          key: r-packages-${{ runner.os }}-${{ hashFiles('.github/workflows/win-probability.yml') }}
+          key: r-packages-${{ runner.os }}-wp-${{ hashFiles('.github/workflows/win-probability.yml') }}
           restore-keys: |
-            r-packages-${{ runner.os }}-
+            r-packages-${{ runner.os }}-wp-
 
       - name: Install dependencies
         run: |

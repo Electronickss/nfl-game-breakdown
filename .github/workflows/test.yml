@@ -20,9 +20,6 @@ jobs:
           r-version: '4.3.1'
           use-public-rspm: true
 
-      - name: Install system dependencies
-        run: sudo apt-get install -y libmagick++-dev
-
       - name: Cache R packages
         uses: actions/cache@v4
         with:
@@ -35,7 +32,7 @@ jobs:
         run: |
           Rscript -e '
           options(repos = c(CRAN = "https://cloud.r-project.org"))
-          install.packages(c("testthat", "covr", "dplyr", "ggplot2", "glue", "scales", "ggimage"))
+          install.packages(c("testthat", "covr", "dplyr", "ggplot2", "glue", "scales"))
           '
 
       - name: Run tests
