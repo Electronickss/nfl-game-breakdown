@@ -97,8 +97,10 @@ test_that("plot_air_yards limits to 8 players", {
 
 test_that("plot_rb_workload returns a ggplot object", {
   load_logos_orig <- load_logos
+  load_rosters_orig <- load_rosters
   load_logos <<- function() make_mock_logos()
-  on.exit(load_logos <<- load_logos_orig, add = TRUE)
+  load_rosters <<- function(year) make_mock_rosters()
+  on.exit({ load_logos <<- load_logos_orig; load_rosters <<- load_rosters_orig }, add = TRUE)
   pbp <- make_mock_game()
   p <- plot_rb_workload(pbp, 1, 2024)
   expect_s3_class(p, "ggplot")
@@ -106,8 +108,10 @@ test_that("plot_rb_workload returns a ggplot object", {
 
 test_that("plot_rb_workload filters by game_id when provided", {
   load_logos_orig <- load_logos
+  load_rosters_orig <- load_rosters
   load_logos <<- function() make_mock_logos()
-  on.exit(load_logos <<- load_logos_orig, add = TRUE)
+  load_rosters <<- function(year) make_mock_rosters()
+  on.exit({ load_logos <<- load_logos_orig; load_rosters <<- load_rosters_orig }, add = TRUE)
   pbp <- make_mock_game(game_id = "2024_01_KC_BAL")
   p <- plot_rb_workload(pbp, 1, 2024, game_id = "2024_01_KC_BAL")
   expect_s3_class(p, "ggplot")
@@ -115,8 +119,10 @@ test_that("plot_rb_workload filters by game_id when provided", {
 
 test_that("plot_wrte_targets returns a ggplot object", {
   load_logos_orig <- load_logos
+  load_rosters_orig <- load_rosters
   load_logos <<- function() make_mock_logos()
-  on.exit(load_logos <<- load_logos_orig, add = TRUE)
+  load_rosters <<- function(year) make_mock_rosters()
+  on.exit({ load_logos <<- load_logos_orig; load_rosters <<- load_rosters_orig }, add = TRUE)
   pbp <- make_mock_game()
   p <- plot_wrte_targets(pbp, 1, 2024)
   expect_s3_class(p, "ggplot")
@@ -124,8 +130,10 @@ test_that("plot_wrte_targets returns a ggplot object", {
 
 test_that("plot_wrte_targets filters by game_id when provided", {
   load_logos_orig <- load_logos
+  load_rosters_orig <- load_rosters
   load_logos <<- function() make_mock_logos()
-  on.exit(load_logos <<- load_logos_orig, add = TRUE)
+  load_rosters <<- function(year) make_mock_rosters()
+  on.exit({ load_logos <<- load_logos_orig; load_rosters <<- load_rosters_orig }, add = TRUE)
   pbp <- make_mock_game(game_id = "2024_01_KC_BAL")
   p <- plot_wrte_targets(pbp, 1, 2024, game_id = "2024_01_KC_BAL")
   expect_s3_class(p, "ggplot")
@@ -228,8 +236,10 @@ test_that("plot_air_yards handles single player", {
 
 test_that("plot_rb_workload handles game with all rushes from one team", {
   load_logos_orig <- load_logos
+  load_rosters_orig <- load_rosters
   load_logos <<- function() make_mock_logos()
-  on.exit(load_logos <<- load_logos_orig, add = TRUE)
+  load_rosters <<- function(year) make_mock_rosters()
+  on.exit({ load_logos <<- load_logos_orig; load_rosters <<- load_rosters_orig }, add = TRUE)
   pbp <- make_mock_game(n_plays = 200, week = 1)
   pbp <- pbp |> mutate(
     rush = 1,
@@ -341,8 +351,10 @@ test_that("add_touch_labels works with no away touches", {
 
 test_that("plot_wrte_targets handles game with no targets", {
   load_logos_orig <- load_logos
+  load_rosters_orig <- load_rosters
   load_logos <<- function() make_mock_logos()
-  on.exit(load_logos <<- load_logos_orig, add = TRUE)
+  load_rosters <<- function(year) make_mock_rosters()
+  on.exit({ load_logos <<- load_logos_orig; load_rosters <<- load_rosters_orig }, add = TRUE)
   pbp <- make_mock_game(n_plays = 200, week = 1)
   pbp <- pbp |> mutate(
     pass = 0,
@@ -352,4 +364,103 @@ test_that("plot_wrte_targets handles game with no targets", {
   )
   p <- plot_wrte_targets(pbp, 1, 2024)
   expect_s3_class(p, "ggplot")
+})
+
+test_that("plot_rb_workload only shows RB/FB players, not WRs/TEs", {
+  load_logos_orig <- load_logos
+  load_rosters_orig <- load_rosters
+  load_logos <<- function() make_mock_logos()
+  load_rosters <<- function(year) make_mock_rosters()
+  on.exit({ load_logos <<- load_logos_orig; load_rosters <<- load_rosters_orig }, add = TRUE)
+
+  pbp <- make_mock_game(n_plays = 50, week = 1)
+  pbp <- pbp |> mutate(
+    rush = 1, pass = 0, rush_attempt = 1, pass_attempt = 0,
+    complete_pass = 0, receiver_player_name = NA_character_,
+    rusher_player_name = ifelse(posteam == "BAL", "Test RB", "WR1")
+  )
+
+  p <- plot_rb_workload(pbp, 1, 2024)
+  built <- ggplot_build(p)
+
+  all_labels <- unlist(lapply(built$data, function(d) {
+    if ("label" %in% names(d)) d$label else character(0)
+  }))
+
+  expect_true("Test RB" %in% all_labels)
+  expect_false("WR1" %in% all_labels)
+})
+
+test_that("plot_wrte_targets only shows WR/TE players, not RBs", {
+  load_logos_orig <- load_logos
+  load_rosters_orig <- load_rosters
+  load_logos <<- function() make_mock_logos()
+  load_rosters <<- function(year) make_mock_rosters()
+  on.exit({ load_logos <<- load_logos_orig; load_rosters <<- load_rosters_orig }, add = TRUE)
+
+  pbp <- make_mock_game(n_plays = 50, week = 1)
+  pbp <- pbp |> mutate(
+    pass = 1, rush = 0, pass_attempt = 1, complete_pass = 1,
+    rush_attempt = 0, receiver_player_name = ifelse(posteam == "BAL", "WR1", "Test RB")
+  )
+
+  p <- plot_wrte_targets(pbp, 1, 2024)
+  built <- ggplot_build(p)
+
+  all_labels <- unlist(lapply(built$data, function(d) {
+    if ("label" %in% names(d)) d$label else character(0)
+  }))
+
+  expect_true("WR1" %in% all_labels)
+  expect_false("Test RB" %in% all_labels)
+})
+
+test_that("plot_wrte_targets hides Rush from legend when no WR/TE had a rush", {
+  load_logos_orig <- load_logos
+  load_rosters_orig <- load_rosters
+  load_logos <<- function() make_mock_logos()
+  load_rosters <<- function(year) make_mock_rosters()
+  on.exit({ load_logos <<- load_logos_orig; load_rosters <<- load_rosters_orig }, add = TRUE)
+
+  pbp <- make_mock_game(n_plays = 50, week = 1)
+  pbp <- pbp |> mutate(
+    pass = 1, rush = 0, pass_attempt = 1,
+    receiver_player_name = ifelse(posteam == "BAL", "WR1", "WR2"),
+    rusher_player_name = NA_character_
+  )
+
+  p <- plot_wrte_targets(pbp, 1, 2024)
+  built <- ggplot_build(p)
+
+  all_shapes <- unlist(lapply(built$data, function(d) {
+    if ("shape" %in% names(d)) d$shape else numeric(0)
+  }))
+  expect_false(16 %in% all_shapes)
+})
+
+test_that("plot_wrte_targets shows Rush in legend when a WR/TE had a rush", {
+  load_logos_orig <- load_logos
+  load_rosters_orig <- load_rosters
+  load_logos <<- function() make_mock_logos()
+  load_rosters <<- function(year) make_mock_rosters()
+  on.exit({ load_logos <<- load_logos_orig; load_rosters <<- load_rosters_orig }, add = TRUE)
+
+  pbp <- make_mock_game(n_plays = 50, week = 1)
+  pbp <- pbp |> mutate(
+    rush = ifelse(row_number() <= 5, 1, 0),
+    pass = ifelse(rush == 0, 1, 0),
+    rush_attempt = rush,
+    pass_attempt = pass,
+    complete_pass = ifelse(pass == 1, 1, 0),
+    rusher_player_name = ifelse(rush == 1, "WR1", NA_character_),
+    receiver_player_name = ifelse(pass == 1, "WR1", NA_character_)
+  )
+
+  p <- plot_wrte_targets(pbp, 1, 2024)
+  built <- ggplot_build(p)
+
+  all_shapes <- unlist(lapply(built$data, function(d) {
+    if ("shape" %in% names(d)) d$shape else numeric(0)
+  }))
+  expect_true(16 %in% all_shapes)
 })
