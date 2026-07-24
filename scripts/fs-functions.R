@@ -217,36 +217,59 @@ get_player_team_colors <- function(touch_data, logos) {
   touch_data
 }
 
-add_touch_labels <- function(plot, touch_data, player_team_colors, position = "above") {
-  labeled_touches <- touch_data |>
-    group_by(player) |>
-    slice_min(game_seconds_remaining, n = 1) |>
-    ungroup()
+add_touch_labels <- function(plot, touch_data, player_team_colors, home_team) {
+  if (nrow(touch_data) == 0) return(plot)
 
-  labeled_touches <- get_player_team_colors(labeled_touches, player_team_colors)
+  touch_data <- get_player_team_colors(touch_data, player_team_colors)
 
-  if (nrow(labeled_touches) > 0 && requireNamespace("ggrepel", quietly = TRUE)) {
-    plot +
-      ggrepel::geom_text_repel(
-        data = labeled_touches,
-        aes(x = game_seconds_remaining, y = vegas_home_wp, label = player, color = player),
-        size = 2.5, fontface = "bold", show.legend = FALSE,
-        direction = "x", box.padding = 0.4, point.padding = 0.6,
-        segment.color = "grey50", segment.size = 0.3,
-        max.overlaps = Inf, force = 2,
-        nudge_y = if (position == "above") 0.04 else -0.04
-      )
-  } else if (nrow(labeled_touches) > 0) {
-    plot +
-      geom_text(
-        data = labeled_touches,
-        aes(x = game_seconds_remaining, y = vegas_home_wp, label = player, color = player),
-        size = 2.5, fontface = "bold", vjust = if (position == "above") -1.5 else 1.5,
-        show.legend = FALSE
-      )
+  home_touches <- touch_data |> filter(posteam == home_team)
+  away_touches <- touch_data |> filter(posteam != home_team)
+
+  if (requireNamespace("ggrepel", quietly = TRUE)) {
+    if (nrow(home_touches) > 0) {
+      plot <- plot +
+        ggrepel::geom_text_repel(
+          data = home_touches,
+          aes(x = game_seconds_remaining, y = vegas_home_wp, label = player, color = player),
+          size = 2.5, fontface = "bold", show.legend = FALSE,
+          direction = "x", box.padding = 0.3, point.padding = 0.5,
+          segment.color = "grey50", segment.size = 0.2,
+          max.overlaps = Inf, force = 1.5,
+          nudge_y = 0.04
+        )
+    }
+    if (nrow(away_touches) > 0) {
+      plot <- plot +
+        ggrepel::geom_text_repel(
+          data = away_touches,
+          aes(x = game_seconds_remaining, y = vegas_home_wp, label = player, color = player),
+          size = 2.5, fontface = "bold", show.legend = FALSE,
+          direction = "x", box.padding = 0.3, point.padding = 0.5,
+          segment.color = "grey50", segment.size = 0.2,
+          max.overlaps = Inf, force = 1.5,
+          nudge_y = -0.04
+        )
+    }
   } else {
-    plot
+    if (nrow(home_touches) > 0) {
+      plot <- plot +
+        geom_text(
+          data = home_touches,
+          aes(x = game_seconds_remaining, y = vegas_home_wp, label = player, color = player),
+          size = 2.5, fontface = "bold", vjust = -1.5, show.legend = FALSE
+        )
+    }
+    if (nrow(away_touches) > 0) {
+      plot <- plot +
+        geom_text(
+          data = away_touches,
+          aes(x = game_seconds_remaining, y = vegas_home_wp, label = player, color = player),
+          size = 2.5, fontface = "bold", vjust = 1.5, show.legend = FALSE
+        )
+    }
   }
+
+  plot
 }
 
 # ---- RB Workload Chart ------------------------------------------------------
@@ -345,7 +368,7 @@ plot_rb_workload <- function(pbp, week, year, game_id = NULL) {
       legend.position = "bottom"
     )
 
-  plot <- add_touch_labels(plot, all_touches, logos)
+  plot <- add_touch_labels(plot, all_touches, logos, home_team)
 
   version <- tryCatch(read_version(), error = function(e) "dev")
   plot <- add_version_watermark(plot, version)
@@ -445,7 +468,7 @@ plot_wrte_targets <- function(pbp, week, year, game_id = NULL) {
       legend.position = "bottom"
     )
 
-  plot <- add_touch_labels(plot, all_touches, logos)
+  plot <- add_touch_labels(plot, all_touches, logos, home_team)
 
   version <- tryCatch(read_version(), error = function(e) "dev")
   plot <- add_version_watermark(plot, version)
