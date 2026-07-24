@@ -372,11 +372,11 @@ test_that("resolve_team_colors uses custom threshold", {
     "TEAM_A", "https://example.com/a.png", "#E31837", "#FF0000",
     "TEAM_B", "https://example.com/b.png", "#E01030", "#000000"
   )
-  result_low <- resolve_team_colors("TEAM_A", "TEAM_B", logos, threshold = 5)
-  expect_equal(result_low$away_color, "#000000")
+  result_strict <- resolve_team_colors("TEAM_A", "TEAM_B", logos, threshold = 1)
+  expect_equal(result_strict$away_color, "#E01030")
 
-  result_high <- resolve_team_colors("TEAM_A", "TEAM_B", logos, threshold = 100)
-  expect_equal(result_high$away_color, "#E01030")
+  result_loose <- resolve_team_colors("TEAM_A", "TEAM_B", logos, threshold = 10)
+  expect_equal(result_loose$away_color, "#000000")
 })
 
 test_that("load_logos includes team_color2", {
