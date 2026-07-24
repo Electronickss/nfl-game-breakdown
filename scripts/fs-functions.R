@@ -217,29 +217,32 @@ get_player_team_colors <- function(touch_data, logos) {
   touch_data
 }
 
-add_touch_labels <- function(plot, touch_data, player_team_colors) {
-  first_touches <- touch_data |>
+add_touch_labels <- function(plot, touch_data, player_team_colors, position = "above") {
+  labeled_touches <- touch_data |>
     group_by(player) |>
     slice_min(game_seconds_remaining, n = 1) |>
     ungroup()
 
-  first_touches <- get_player_team_colors(first_touches, player_team_colors)
+  labeled_touches <- get_player_team_colors(labeled_touches, player_team_colors)
 
-  if (nrow(first_touches) > 0 && requireNamespace("ggrepel", quietly = TRUE)) {
+  if (nrow(labeled_touches) > 0 && requireNamespace("ggrepel", quietly = TRUE)) {
     plot +
       ggrepel::geom_text_repel(
-        data = first_touches,
+        data = labeled_touches,
         aes(x = game_seconds_remaining, y = vegas_home_wp, label = player, color = player),
         size = 2.5, fontface = "bold", show.legend = FALSE,
-        direction = "y", box.padding = 0.3, point.padding = 0.5,
-        segment.color = "grey50", segment.size = 0.3
+        direction = "x", box.padding = 0.4, point.padding = 0.6,
+        segment.color = "grey50", segment.size = 0.3,
+        max.overlaps = Inf, force = 2,
+        nudge_y = if (position == "above") 0.04 else -0.04
       )
-  } else if (nrow(first_touches) > 0) {
+  } else if (nrow(labeled_touches) > 0) {
     plot +
       geom_text(
-        data = first_touches,
+        data = labeled_touches,
         aes(x = game_seconds_remaining, y = vegas_home_wp, label = player, color = player),
-        size = 2.5, fontface = "bold", vjust = -1, show.legend = FALSE
+        size = 2.5, fontface = "bold", vjust = if (position == "above") -1.5 else 1.5,
+        show.legend = FALSE
       )
   } else {
     plot
@@ -261,7 +264,13 @@ plot_rb_workload <- function(pbp, week, year, game_id = NULL) {
   away_team <- game$away_team[1]
   logos <- load_logos()
 
+  resolved <- resolve_team_colors(home_team, away_team, logos)
   wp <- build_wp_segments(game, logos)
+
+  wp_team_colors <- c(
+    setNames(resolved$home_color, home_team),
+    setNames(resolved$away_color, away_team)
+  )
 
   rb_rushes <- game |>
     filter(rush == 1, !is.na(rusher_player_name)) |>
@@ -314,7 +323,7 @@ plot_rb_workload <- function(pbp, week, year, game_id = NULL) {
       aes(x = game_seconds_remaining, xend = x_end, y = vegas_home_wp, yend = y_end, color = posteam),
       linewidth = 0.8
     ) +
-    scale_color_manual(values = wp$team_colors, guide = "none") +
+    scale_color_manual(values = wp_team_colors, name = "Possession") +
     geom_point(
       data = all_touches,
       aes(x = game_seconds_remaining, y = vegas_home_wp, shape = touch_type),
@@ -359,7 +368,13 @@ plot_wrte_targets <- function(pbp, week, year, game_id = NULL) {
   away_team <- game$away_team[1]
   logos <- load_logos()
 
+  resolved <- resolve_team_colors(home_team, away_team, logos)
   wp <- build_wp_segments(game, logos)
+
+  wp_team_colors <- c(
+    setNames(resolved$home_color, home_team),
+    setNames(resolved$away_color, away_team)
+  )
 
   wrte_targets <- game |>
     filter(pass == 1, !is.na(receiver_player_name)) |>
@@ -408,7 +423,7 @@ plot_wrte_targets <- function(pbp, week, year, game_id = NULL) {
       aes(x = game_seconds_remaining, xend = x_end, y = vegas_home_wp, yend = y_end, color = posteam),
       linewidth = 0.8
     ) +
-    scale_color_manual(values = wp$team_colors, guide = "none") +
+    scale_color_manual(values = wp_team_colors, name = "Possession") +
     geom_point(
       data = all_touches,
       aes(x = game_seconds_remaining, y = vegas_home_wp, shape = touch_type),

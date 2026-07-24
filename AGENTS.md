@@ -42,7 +42,7 @@ nfl-game-breakdown/
 
 Functions are separated from entry-point scripts for testability:
 
-- **`helpers.R`**: Shared color constants, `vlog()`, `read_version()`, `add_version_watermark()`, `load_team_colors()`. Sourced by all other scripts.
+- **`helpers.R`**: Shared color constants, `vlog()`, `read_version()`, `add_version_watermark()`, `load_team_colors()`, `generate_synopsis()`, color clump detection (`hex_to_rgb()`, `rgb_to_lab()`, `color_distance()`, `resolve_team_colors()`). Sourced by all other scripts.
 - **`wp-functions.R`**: Pure functions for win probability (plot, theme, helpers). Sourced by `win-probability.R` and tests.
 - **`fs-functions.R`**: Pure functions for fantasy stats (get_team_stats, plot_*). Sourced by `fantasy-stats.R` and tests.
 
@@ -51,23 +51,25 @@ Entry-point scripts (`win-probability.R`, `fantasy-stats.R`) handle library load
 ## Chart Designs
 
 ### Win Probability Chart (`plot_win_probability`)
-- **Line**: Possession-colored segments (each team's color when they have the ball)
-- **Rug marks**: scoring (black, home top/bottom), turnovers (red, inverted), penalties (yellow, inverted), replay/challenge (purple)
+- **Line**: Possession-colored segments (each team's color when they have the ball), with color clump detection (away team switches to secondary color if too similar to home)
+- **Rug marks**: scoring (black, home top/bottom), turnovers (red, inverted), penalties (yellow, inverted)
 - **Logos**: Team logos at top/bottom if `ggimage` is installed
 - **Watermark**: Version number in bottom-right corner
 - **Axes**: Reversed x (game clock counts down), y = 0-100% home WP
 
 ### RB Workload Chart (`plot_rb_workload`)
-- **Line**: Possession-colored WP segments
+- **Line**: Possession-colored WP segments with color clump detection
 - **Touch points**: Shape by type — Rush (circle), Target (triangle), Fumble (diamond), Score (star)
-- **Labels**: ggrepel labels on first touch per player (falls back to geom_text if ggrepel unavailable)
+- **Labels**: ggrepel labels on first touch per player, positioned away from line (falls back to geom_text if ggrepel unavailable)
 - **Players**: Top 4 RBs per team by touch count, each in distinct palette color
+- **Legend**: Team possession colors and touch type shapes
 
 ### WR/TE Targets Chart (`plot_wrte_targets`)
-- **Line**: Possession-colored WP segments
+- **Line**: Possession-colored WP segments with color clump detection
 - **Touch points**: Target (triangle), Fumble (diamond), Score (star)
-- **Labels**: ggrepel labels on first touch per player
+- **Labels**: ggrepel labels on first touch per player, positioned away from line
 - **Players**: Top 5 pass catchers per team by target count
+- **Legend**: Team possession colors and touch type shapes
 
 ## Versioning
 
@@ -77,8 +79,8 @@ Entry-point scripts (`win-probability.R`, `fantasy-stats.R`) handle library load
 - Used for watermark on all charts and release tag suffixes
 
 ### Chart Release Tags
-- Win probability: `wp-{game_id}-v{version}` (e.g. `wp-2025_01_KC_BAL-v1.0`)
-- Fantasy stats: `fantasy-{year}-w{week}-v{version}` (e.g. `fantasy-2025-w1-v1.0`)
+- Win probability: `{year}-wp-{game_id}-v{version}` (e.g. `2025-wp-2025_01_KC_BAL-v1.0`)
+- Fantasy stats: `{year}-fantasy-w{week}-v{version}` (e.g. `2025-fantasy-w1-v1.0`)
 
 ### Major Version Bump
 When a major version bump is detected (new major number in VERSION vs. latest release), all charts for the current run are regenerated even if output files already exist. Minor version changes only generate missing charts (skip existing).
@@ -172,7 +174,9 @@ Triggers on push to main and PRs. Runs tests and checks coverage (95% threshold)
 ## Release Strategy
 
 Chart workflows create GitHub Releases to persist generated charts:
-- **Release creation**: `gh release create {tag} --latest=false --generate-notes`
+- **Release creation**: `gh release create {tag} --latest=false --notes "{synopsis}"`
+- **Release titles**: Prefixed with year (e.g. `2025 Week 1: KC at BAL (v1.0)`)
+- **Release notes**: Game synopsis generated from PBP data (winner, score, key plays)
 - **Asset upload**: `gh release upload {tag} {file} --clobber`
 - **Skip existing**: Check `gh release view {tag} --json assets` before generating
 - **Cleanup**: Delete workflow run artifacts after successful release upload

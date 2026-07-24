@@ -309,3 +309,162 @@ test_that("main creates data directory with interpolated year, not literal strin
   expect_false(dir.exists(file.path(test_subdir, "data", "{2024}")),
     info = "Should NOT create a directory with literal curly braces")
 })
+
+test_that("color_distance returns numeric", {
+  dist <- color_distance("#E31837", "#241773")
+  expect_type(dist, "double")
+  expect_true(dist > 0)
+})
+
+test_that("color_distance is symmetric", {
+  d1 <- color_distance("#FF0000", "#0000FF")
+  d2 <- color_distance("#0000FF", "#FF0000")
+  expect_equal(d1, d2)
+})
+
+test_that("color_distance returns 0 for same color", {
+  dist <- color_distance("#FF0000", "#FF0000")
+  expect_equal(dist, 0)
+})
+
+test_that("color_distance between similar colors is small", {
+  dist <- color_distance("#E31837", "#E01030")
+  expect_true(dist < 10)
+})
+
+test_that("color_distance between different colors is large", {
+  dist <- color_distance("#E31837", "#241773")
+  expect_true(dist > 40)
+})
+
+test_that("resolve_team_colors keeps primary when colors are distinct", {
+  logos <- make_mock_logos()
+  result <- resolve_team_colors("BAL", "SF", logos)
+  expect_equal(result$home_color, "#241773")
+  expect_equal(result$away_color, "#AA0000")
+})
+
+test_that("resolve_team_colors switches to secondary when colors clump", {
+  logos <- tibble::tribble(
+    ~team_abbr, ~team_logo_espn, ~team_color, ~team_color2,
+    "TEAM_A", "https://example.com/a.png", "#00338D", "#FF0000",
+    "TEAM_B", "https://example.com/b.png", "#003087", "#000000"
+  )
+  result <- resolve_team_colors("TEAM_A", "TEAM_B", logos)
+  dist <- color_distance(result$home_color, result$away_color)
+  expect_true(dist >= 25)
+})
+
+test_that("resolve_team_colors handles missing secondary color", {
+  logos <- tibble::tribble(
+    ~team_abbr, ~team_logo_espn, ~team_color, ~team_color2,
+    "TEAM_A", "https://example.com/a.png", "#00338D", "#FF0000",
+    "TEAM_B", "https://example.com/b.png", "#003087", NA_character_
+  )
+  result <- resolve_team_colors("TEAM_A", "TEAM_B", logos)
+  dist <- color_distance(result$home_color, result$away_color)
+  expect_true(dist >= 25)
+})
+
+test_that("resolve_team_colors uses custom threshold", {
+  logos <- tibble::tribble(
+    ~team_abbr, ~team_logo_espn, ~team_color, ~team_color2,
+    "TEAM_A", "https://example.com/a.png", "#E31837", "#FF0000",
+    "TEAM_B", "https://example.com/b.png", "#E01030", "#000000"
+  )
+  result_strict <- resolve_team_colors("TEAM_A", "TEAM_B", logos, threshold = 1)
+  dist_strict <- color_distance(result_strict$home_color, result_strict$away_color)
+  expect_true(dist_strict < 25)
+
+  result_loose <- resolve_team_colors("TEAM_A", "TEAM_B", logos, threshold = 10)
+  dist_loose <- color_distance(result_loose$home_color, result_loose$away_color)
+  expect_true(dist_loose >= 25)
+})
+
+test_that("resolve_team_colors tries home secondary when away secondary doesnt help", {
+  logos <- tibble::tribble(
+    ~team_abbr, ~team_logo_espn, ~team_color, ~team_color2,
+    "TEAM_A", "https://example.com/a.png", "#203731", "#FFB612",
+    "TEAM_B", "https://example.com/b.png", "#003F2D", "#000000"
+  )
+  result <- resolve_team_colors("TEAM_A", "TEAM_B", logos)
+  dist <- color_distance(result$home_color, result$away_color)
+  expect_true(dist >= 25)
+})
+
+test_that("load_logos includes team_color2", {
+  skip_if_not_installed("nflfastR")
+  logos <- load_logos()
+  expect_true("team_color2" %in% names(logos))
+})
+
+test_that("color clump threshold catches known identical-color pairs", {
+  logos <- make_mock_logos()
+  # Simulate identical primary colors (like DAL/DEN/NE/SEA/TEN all being #002244)
+  logos$team_color[logos$team_abbr == "KC"] <- "#002244"
+  logos$team_color[logos$team_abbr == "BAL"] <- "#002244"
+
+  result <- resolve_team_colors("KC", "BAL", logos)
+  dist <- color_distance(result$home_color, result$away_color)
+  expect_true(dist >= 25)
+})
+
+test_that("color clump threshold does not trigger for clearly distinct colors", {
+  logos <- make_mock_logos()
+  # KC (#E31837 red) vs BAL (#241773 purple) - very different
+  result <- resolve_team_colors("KC", "BAL", logos)
+  expect_equal(result$away_color, "#241773")
+})
+
+test_that("secondary color always resolves clumping for real NFL teams", {
+  skip_if_not_installed("nflfastR")
+  library(dplyr)
+
+  real_teams <- c("ARI","ATL","BAL","BUF","CAR","CHI","CIN","CLE","DAL","DEN",
+                  "DET","GB","HOU","IND","JAX","KC","LAC","LAR","LV","MIA",
+                  "MIN","NE","NO","NYG","NYJ","PHI","PIT","SEA","SF","TB","TEN","WAS")
+
+  logos <- nflfastR::teams_colors_logos |>
+    filter(team_abbr %in% real_teams) |>
+    select(team_abbr, team_color, team_color2)
+
+  for (i in seq_along(real_teams)) {
+    for (j in seq_along(real_teams)) {
+      if (i >= j) next
+      t1 <- real_teams[i]
+      t2 <- real_teams[j]
+      c1 <- logos$team_color[logos$team_abbr == t1]
+      c2 <- logos$team_color[logos$team_abbr == t2]
+      d <- color_distance(c1, c2)
+
+      if (d < 25) {
+        resolved <- resolve_team_colors(t1, t2, logos)
+        new_dist <- color_distance(resolved$home_color, resolved$away_color)
+        expect_true(new_dist >= 25,
+          info = paste0(t1, " vs ", t2, " (dist=", round(d,1),
+          "): resolved colors still clumped at dist=", round(new_dist,1)))
+      }
+    }
+  }
+})
+
+test_that("generate_synopsis produces a character string", {
+  game_data <- make_mock_game()
+  synopsis <- generate_synopsis(game_data)
+  expect_type(synopsis, "character")
+  expect_true(nchar(synopsis) > 0)
+})
+
+test_that("generate_synopsis includes team names", {
+  game_data <- make_mock_game(home_team = "BAL", away_team = "KC")
+  synopsis <- generate_synopsis(game_data)
+  expect_true(grepl("BAL", synopsis) || grepl("KC", synopsis))
+})
+
+test_that("generate_synopsis handles tie games", {
+  game_data <- make_mock_game(home_team = "BAL", away_team = "KC")
+  game_data$home_score <- rep(14, nrow(game_data))
+  game_data$away_score <- rep(14, nrow(game_data))
+  synopsis <- generate_synopsis(game_data)
+  expect_true(grepl("tie", synopsis, ignore.case = TRUE))
+})
