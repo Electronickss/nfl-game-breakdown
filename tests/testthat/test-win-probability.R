@@ -309,3 +309,99 @@ test_that("main creates data directory with interpolated year, not literal strin
   expect_false(dir.exists(file.path(test_subdir, "data", "{2024}")),
     info = "Should NOT create a directory with literal curly braces")
 })
+
+test_that("color_distance returns numeric", {
+  dist <- color_distance("#E31837", "#241773")
+  expect_type(dist, "double")
+  expect_true(dist > 0)
+})
+
+test_that("color_distance is symmetric", {
+  d1 <- color_distance("#FF0000", "#0000FF")
+  d2 <- color_distance("#0000FF", "#FF0000")
+  expect_equal(d1, d2)
+})
+
+test_that("color_distance returns 0 for same color", {
+  dist <- color_distance("#FF0000", "#FF0000")
+  expect_equal(dist, 0)
+})
+
+test_that("color_distance between similar colors is small", {
+  dist <- color_distance("#E31837", "#E01030")
+  expect_true(dist < 10)
+})
+
+test_that("color_distance between different colors is large", {
+  dist <- color_distance("#E31837", "#241773")
+  expect_true(dist > 40)
+})
+
+test_that("resolve_team_colors keeps primary when colors are distinct", {
+  logos <- make_mock_logos()
+  result <- resolve_team_colors("BAL", "SF", logos)
+  expect_equal(result$home_color, "#241773")
+  expect_equal(result$away_color, "#AA0000")
+})
+
+test_that("resolve_team_colors switches to secondary when colors clump", {
+  logos <- tibble::tribble(
+    ~team_abbr, ~team_logo_espn, ~team_color, ~team_color2,
+    "TEAM_A", "https://example.com/a.png", "#00338D", "#FF0000",
+    "TEAM_B", "https://example.com/b.png", "#003087", "#000000"
+  )
+  result <- resolve_team_colors("TEAM_A", "TEAM_B", logos)
+  expect_equal(result$home_color, "#00338D")
+  expect_equal(result$away_color, "#000000")
+})
+
+test_that("resolve_team_colors handles missing secondary color", {
+  logos <- tibble::tribble(
+    ~team_abbr, ~team_logo_espn, ~team_color, ~team_color2,
+    "TEAM_A", "https://example.com/a.png", "#00338D", "#FF0000",
+    "TEAM_B", "https://example.com/b.png", "#003087", NA_character_
+  )
+  result <- resolve_team_colors("TEAM_A", "TEAM_B", logos)
+  expect_equal(result$home_color, "#00338D")
+  expect_equal(result$away_color, "#003087")
+})
+
+test_that("resolve_team_colors uses custom threshold", {
+  logos <- tibble::tribble(
+    ~team_abbr, ~team_logo_espn, ~team_color, ~team_color2,
+    "TEAM_A", "https://example.com/a.png", "#E31837", "#FF0000",
+    "TEAM_B", "https://example.com/b.png", "#E01030", "#000000"
+  )
+  result_low <- resolve_team_colors("TEAM_A", "TEAM_B", logos, threshold = 5)
+  expect_equal(result_low$away_color, "#000000")
+
+  result_high <- resolve_team_colors("TEAM_A", "TEAM_B", logos, threshold = 100)
+  expect_equal(result_high$away_color, "#E01030")
+})
+
+test_that("load_logos includes team_color2", {
+  skip_if_not_installed("nflfastR")
+  logos <- load_logos()
+  expect_true("team_color2" %in% names(logos))
+})
+
+test_that("generate_synopsis produces a character string", {
+  game_data <- make_mock_game()
+  synopsis <- generate_synopsis(game_data)
+  expect_type(synopsis, "character")
+  expect_true(nchar(synopsis) > 0)
+})
+
+test_that("generate_synopsis includes team names", {
+  game_data <- make_mock_game(home_team = "BAL", away_team = "KC")
+  synopsis <- generate_synopsis(game_data)
+  expect_true(grepl("BAL", synopsis) || grepl("KC", synopsis))
+})
+
+test_that("generate_synopsis handles tie games", {
+  game_data <- make_mock_game(home_team = "BAL", away_team = "KC")
+  game_data$home_score <- rep(14, nrow(game_data))
+  game_data$away_score <- rep(14, nrow(game_data))
+  synopsis <- generate_synopsis(game_data)
+  expect_true(grepl("tie", synopsis, ignore.case = TRUE))
+})

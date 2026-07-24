@@ -67,11 +67,11 @@ make_mock_game <- function(
 
 make_mock_logos <- function() {
   tribble(
-    ~team_abbr, ~team_logo_espn, ~team_color,
-    "KC", "https://example.com/kc.png", "#E31837",
-    "BAL", "https://example.com/bal.png", "#241773",
-    "SF", "https://example.com/sf.png", "#AA0000",
-    "BUF", "https://example.com/buf.png", "#00338D"
+    ~team_abbr, ~team_logo_espn, ~team_color, ~team_color2,
+    "KC", "https://example.com/kc.png", "#E31837", "#FFB81C",
+    "BAL", "https://example.com/bal.png", "#241773", "#9E7C0C",
+    "SF", "https://example.com/sf.png", "#AA0000", "#B3995D",
+    "BUF", "https://example.com/buf.png", "#00338D", "#C60C30"
   )
 }
 

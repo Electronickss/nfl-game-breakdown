@@ -102,7 +102,7 @@ jobs:
             exit 0
           fi
 
-          EXISTING_TAG=$(gh release list --search "fantasy-${YEAR}-w${WEEK}-v" --json tagName -q '.[0].tagName' 2>/dev/null || true)
+          EXISTING_TAG=$(gh release list --search "${YEAR}-fantasy-w${WEEK}-v" --json tagName -q '.[0].tagName' 2>/dev/null || true)
           if [ -z "$EXISTING_TAG" ]; then
             echo "exists=false" >> "$GITHUB_OUTPUT"
           else
@@ -139,12 +139,12 @@ jobs:
           VERSION="${{ steps.check.outputs.version }}"
           YEAR="${{ github.event.inputs.year }}"
           WEEK="${{ github.event.inputs.week }}"
-          RELEASE_TAG="fantasy-${YEAR}-w${WEEK}-v${VERSION}"
+          RELEASE_TAG="${YEAR}-fantasy-w${WEEK}-v${VERSION}"
 
           gh release delete "$RELEASE_TAG" --yes 2>/dev/null || true
           gh release create "$RELEASE_TAG" charts/*.png \
-            --title "Fantasy Stats: Week ${WEEK}, ${YEAR} (v${VERSION})" \
-            --generate-notes
+            --title "${YEAR} Fantasy Stats: Week ${WEEK} (v${VERSION})" \
+            --notes "Fantasy stat breakdowns for Week ${WEEK}, ${YEAR} NFL games including passing, rushing, receiving, target share, and air yards charts."
           echo "Created release $RELEASE_TAG"
 
       - name: Skip notification

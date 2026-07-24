@@ -134,7 +134,7 @@ jobs:
               continue
             fi
 
-            EXISTING_TAG=$(gh release list --search "wp-${gid}-v" --json tagName -q '.[0].tagName' 2>/dev/null || true)
+            EXISTING_TAG=$(gh release list --search "${YEAR}-wp-${gid}-v" --json tagName -q '.[0].tagName' 2>/dev/null || true)
             if [ -z "$EXISTING_TAG" ]; then
               MISSING="$MISSING $gid"
               continue
@@ -199,8 +199,20 @@ jobs:
               WEEK_LABEL="Week ${WEEK_NUM}"
             fi
 
-            RELEASE_TAG="wp-${gid}-v${VERSION}"
+            RELEASE_TAG="${YEAR}-wp-${gid}-v${VERSION}"
             gh release delete "$RELEASE_TAG" --yes 2>/dev/null || true
+
+            SYNOPSIS=$(Rscript -e '
+            options(nflreadr.cache = "filesystem")
+            source("scripts/helpers.R")
+            source("scripts/wp-functions.R")
+            library(nflfastR)
+            library(dplyr)
+            year <- as.integer("${YEAR}")
+            game_id <- "${gid}"
+            pbp <- load_pbp(year) |> filter(game_id == !!game_id)
+            cat(generate_synopsis(pbp))
+            ' 2>/dev/null || echo "")
 
             ASSETS=("$WP_PNG")
             RB_PNG=$(find charts -name "rb-workload-w*-${gid}-v${VERSION}.png" 2>/dev/null || true)
@@ -213,8 +225,8 @@ jobs:
             fi
 
             gh release create "$RELEASE_TAG" "${ASSETS[@]}" \
-              --title "${WEEK_LABEL} - ${AWAY} at ${HOME} (v${VERSION})" \
-              --generate-notes
+              --title "${YEAR} ${WEEK_LABEL}: ${AWAY} at ${HOME} (v${VERSION})" \
+              --notes "${SYNOPSIS}"
             echo "Created release $RELEASE_TAG with group of images: ${ASSETS[*]}"
           done
 

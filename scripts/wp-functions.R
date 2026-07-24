@@ -6,7 +6,7 @@ load_data <- function(start_year, end_year) {
 
 load_logos <- function() {
   nflfastR::teams_colors_logos |>
-    select(team_abbr, team_logo_espn, team_color)
+    select(team_abbr, team_logo_espn, team_color, team_color2)
 }
 
 # ---- Play Classification Helpers --------------------------------------------
@@ -133,6 +133,8 @@ plot_win_probability <- function(data, logos, foreground_color = rich_black, bac
   home_team_abbr <- data[1, ]$home_team
   away_team_abbr <- data[1, ]$away_team
 
+  resolved <- resolve_team_colors(home_team_abbr, away_team_abbr, logos)
+
   logo_placement_data <- data.frame(
     x = c(3600, 3600),
     y = c(0.875, 0.125),
@@ -140,9 +142,7 @@ plot_win_probability <- function(data, logos, foreground_color = rich_black, bac
     stringsAsFactors = FALSE
   ) |> inner_join(logos, by = "team_abbr")
 
-  team_colors <- logos |>
-    distinct(team_abbr, team_color)
-  team_colors <- setNames(team_colors$team_color, team_colors$team_abbr)
+  team_colors <- c(setNames(resolved$home_color, home_team_abbr), setNames(resolved$away_color, away_team_abbr))
 
   wp_line <- data |>
     distinct(game_seconds_remaining, vegas_home_wp, posteam) |>
@@ -168,11 +168,10 @@ plot_win_probability <- function(data, logos, foreground_color = rich_black, bac
     scale_color_manual(values = team_colors, name = "Possession") +
     geom_rug(data = filter(data, home_scoring_play == 1), color = rich_black, sides = "t", linewidth = 0.5) +
     geom_rug(data = filter(data, away_scoring_play == 1), color = rich_black, sides = "b", linewidth = 0.5) +
-    geom_rug(data = filter(data, home_turnover_play == 1), color = red, sides = "b", linewidth = 0.5) +
-    geom_rug(data = filter(data, away_turnover_play == 1), color = red, sides = "t", linewidth = 0.5) +
+    geom_rug(data = filter(data, home_turnover_play == 1), color = red, sides = "t", linewidth = 0.5) +
+    geom_rug(data = filter(data, away_turnover_play == 1), color = red, sides = "b", linewidth = 0.5) +
     geom_rug(data = filter(data, home_penalty == 1), color = yellow, sides = "t", linewidth = 0.3) +
-    geom_rug(data = filter(data, away_penalty == 1), color = yellow, sides = "b", linewidth = 0.3) +
-    geom_rug(data = filter(data, !is.na(replay_or_challenge)), color = purple, sides = "t", linewidth = 0.3)
+    geom_rug(data = filter(data, away_penalty == 1), color = yellow, sides = "b", linewidth = 0.3)
 
   if (has_ggimage()) {
     plot <- plot +
@@ -190,7 +189,8 @@ plot_win_probability <- function(data, logos, foreground_color = rich_black, bac
       title = glue("{game_year} {week_label}: {away_team_abbr} ({tail(data$away_score, 1)}) at {home_team_abbr} ({tail(data$home_score, 1)})"),
       caption = "Data from nflfastR",
       x = "Quarters",
-      y = "Home Win Probability"
+      y = "Home Win Probability",
+      color = "Team"
     )
 
   plot <- add_version_watermark(plot, version)
