@@ -48,9 +48,9 @@ make_mock_game <- function(
     complete_pass = ifelse(pass == 1, sample(0:1, n_plays, replace = TRUE), 0),
     pass_attempt = ifelse(pass == 1, 1, 0),
     rush_attempt = ifelse(rush == 1, 1, 0),
-    passer_player_name = ifelse(pass == 1, "Test QB", NA),
-    rusher_player_name = ifelse(rush == 1, "Test RB", NA),
-    receiver_player_name = ifelse(pass == 1, sample(c("WR1", "WR2", "TE1"), n_plays, replace = TRUE), NA),
+    passer_player_name = ifelse(pass == 1, "T.QB", NA),
+    rusher_player_name = ifelse(rush == 1, "T.RB", NA),
+    receiver_player_name = ifelse(pass == 1, sample(c("W.1", "W.2", "T.1"), n_plays, replace = TRUE), NA),
     passing_yards = ifelse(pass == 1, sample(0:40, n_plays, replace = TRUE), 0),
     rushing_yards = ifelse(rush == 1, sample(0:20, n_plays, replace = TRUE), 0),
     pass_touchdown = ifelse(pass == 1, sample(0:1, n_plays, replace = TRUE, prob = c(0.95, 0.05)), 0),
@@ -67,15 +67,15 @@ make_mock_game <- function(
 
 make_mock_rosters <- function() {
   tribble(
-    ~full_name, ~position, ~team,
-    "Test RB", "RB", "BAL",
-    "Test RB", "RB", "KC",
-    "WR1", "WR", "BAL",
-    "WR2", "WR", "BAL",
-    "WR3", "WR", "KC",
-    "TE1", "TE", "BAL",
-    "Test QB", "QB", "BAL",
-    "Test QB", "QB", "KC"
+    ~first_name, ~last_name, ~position, ~team,
+    "T", "RB", "RB", "BAL",
+    "T", "RB", "RB", "KC",
+    "W", "1", "WR", "BAL",
+    "W", "2", "WR", "BAL",
+    "W", "3", "WR", "KC",
+    "T", "1", "TE", "BAL",
+    "T", "QB", "QB", "BAL",
+    "T", "QB", "QB", "KC"
   )
 }
 

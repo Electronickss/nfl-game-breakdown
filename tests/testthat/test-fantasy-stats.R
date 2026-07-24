@@ -377,7 +377,7 @@ test_that("plot_rb_workload only shows RB/FB players, not WRs/TEs", {
   pbp <- pbp |> mutate(
     rush = 1, pass = 0, rush_attempt = 1, pass_attempt = 0,
     complete_pass = 0, receiver_player_name = NA_character_,
-    rusher_player_name = ifelse(posteam == "BAL", "Test RB", "WR1")
+    rusher_player_name = ifelse(posteam == "BAL", "T.RB", "W.1")
   )
 
   p <- plot_rb_workload(pbp, 1, 2024)
@@ -387,8 +387,8 @@ test_that("plot_rb_workload only shows RB/FB players, not WRs/TEs", {
     if ("label" %in% names(d)) d$label else character(0)
   }))
 
-  expect_true("Test RB" %in% all_labels)
-  expect_false("WR1" %in% all_labels)
+  expect_true("T.RB" %in% all_labels)
+  expect_false("W.1" %in% all_labels)
 })
 
 test_that("plot_wrte_targets only shows WR/TE players, not RBs", {
@@ -401,7 +401,7 @@ test_that("plot_wrte_targets only shows WR/TE players, not RBs", {
   pbp <- make_mock_game(n_plays = 50, week = 1)
   pbp <- pbp |> mutate(
     pass = 1, rush = 0, pass_attempt = 1, complete_pass = 1,
-    rush_attempt = 0, receiver_player_name = ifelse(posteam == "BAL", "WR1", "Test RB")
+    rush_attempt = 0, receiver_player_name = ifelse(posteam == "BAL", "W.1", "T.RB")
   )
 
   p <- plot_wrte_targets(pbp, 1, 2024)
@@ -411,8 +411,8 @@ test_that("plot_wrte_targets only shows WR/TE players, not RBs", {
     if ("label" %in% names(d)) d$label else character(0)
   }))
 
-  expect_true("WR1" %in% all_labels)
-  expect_false("Test RB" %in% all_labels)
+  expect_true("W.1" %in% all_labels)
+  expect_false("T.RB" %in% all_labels)
 })
 
 test_that("plot_wrte_targets hides Rush from legend when no WR/TE had a rush", {
@@ -425,7 +425,7 @@ test_that("plot_wrte_targets hides Rush from legend when no WR/TE had a rush", {
   pbp <- make_mock_game(n_plays = 50, week = 1)
   pbp <- pbp |> mutate(
     pass = 1, rush = 0, pass_attempt = 1,
-    receiver_player_name = ifelse(posteam == "BAL", "WR1", "WR2"),
+    receiver_player_name = ifelse(posteam == "BAL", "W.1", "W.2"),
     rusher_player_name = NA_character_
   )
 
@@ -452,8 +452,8 @@ test_that("plot_wrte_targets shows Rush in legend when a WR/TE had a rush", {
     rush_attempt = rush,
     pass_attempt = pass,
     complete_pass = ifelse(pass == 1, 1, 0),
-    rusher_player_name = ifelse(rush == 1, "WR1", NA_character_),
-    receiver_player_name = ifelse(pass == 1, "WR1", NA_character_)
+    rusher_player_name = ifelse(rush == 1, "W.1", NA_character_),
+    receiver_player_name = ifelse(pass == 1, "W.1", NA_character_)
   )
 
   p <- plot_wrte_targets(pbp, 1, 2024)

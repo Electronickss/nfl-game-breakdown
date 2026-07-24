@@ -180,6 +180,17 @@ plot_air_yards <- function(receiving, team) {
 
 # ---- Workload Chart Helpers -------------------------------------------------
 
+get_player_positions <- function(roster, positions, teams) {
+  roster |>
+    filter(position %in% positions, team %in% teams) |>
+    transmute(
+      player = paste0(substr(first_name, 1, 1), ".", last_name),
+      position = position
+    ) |>
+    distinct(player) |>
+    pull(player)
+}
+
 build_wp_segments <- function(game, logos) {
   team_colors <- logos |>
     distinct(team_abbr, team_color)
@@ -288,10 +299,7 @@ plot_rb_workload <- function(pbp, week, year, game_id = NULL) {
   away_team <- game$away_team[1]
   logos <- load_logos()
   rosters <- load_rosters(year)
-  rb_positions <- c("RB", "FB")
-  rb_names <- rosters |>
-    filter(position %in% rb_positions, team %in% c(home_team, away_team)) |>
-    pull(full_name)
+  rb_names <- get_player_positions(rosters, c("RB", "FB"), c(home_team, away_team))
 
   resolved <- resolve_team_colors(home_team, away_team, logos)
   wp <- build_wp_segments(game, logos)
@@ -397,10 +405,7 @@ plot_wrte_targets <- function(pbp, week, year, game_id = NULL) {
   away_team <- game$away_team[1]
   logos <- load_logos()
   rosters <- load_rosters(year)
-  wrte_positions <- c("WR", "TE")
-  wrte_names <- rosters |>
-    filter(position %in% wrte_positions, team %in% c(home_team, away_team)) |>
-    pull(full_name)
+  wrte_names <- get_player_positions(rosters, c("WR", "TE"), c(home_team, away_team))
 
   resolved <- resolve_team_colors(home_team, away_team, logos)
   wp <- build_wp_segments(game, logos)
