@@ -351,8 +351,8 @@ test_that("resolve_team_colors switches to secondary when colors clump", {
     "TEAM_B", "https://example.com/b.png", "#003087", "#000000"
   )
   result <- resolve_team_colors("TEAM_A", "TEAM_B", logos)
-  expect_equal(result$home_color, "#00338D")
-  expect_equal(result$away_color, "#000000")
+  dist <- color_distance(result$home_color, result$away_color)
+  expect_true(dist >= 25)
 })
 
 test_that("resolve_team_colors handles missing secondary color", {
@@ -362,8 +362,8 @@ test_that("resolve_team_colors handles missing secondary color", {
     "TEAM_B", "https://example.com/b.png", "#003087", NA_character_
   )
   result <- resolve_team_colors("TEAM_A", "TEAM_B", logos)
-  expect_equal(result$home_color, "#00338D")
-  expect_equal(result$away_color, "#003087")
+  dist <- color_distance(result$home_color, result$away_color)
+  expect_true(dist >= 25)
 })
 
 test_that("resolve_team_colors uses custom threshold", {
@@ -373,16 +373,79 @@ test_that("resolve_team_colors uses custom threshold", {
     "TEAM_B", "https://example.com/b.png", "#E01030", "#000000"
   )
   result_strict <- resolve_team_colors("TEAM_A", "TEAM_B", logos, threshold = 1)
-  expect_equal(result_strict$away_color, "#E01030")
+  dist_strict <- color_distance(result_strict$home_color, result_strict$away_color)
+  expect_true(dist_strict < 25)
 
   result_loose <- resolve_team_colors("TEAM_A", "TEAM_B", logos, threshold = 10)
-  expect_equal(result_loose$away_color, "#000000")
+  dist_loose <- color_distance(result_loose$home_color, result_loose$away_color)
+  expect_true(dist_loose >= 25)
+})
+
+test_that("resolve_team_colors tries home secondary when away secondary doesnt help", {
+  logos <- tibble::tribble(
+    ~team_abbr, ~team_logo_espn, ~team_color, ~team_color2,
+    "TEAM_A", "https://example.com/a.png", "#203731", "#FFB612",
+    "TEAM_B", "https://example.com/b.png", "#003F2D", "#000000"
+  )
+  result <- resolve_team_colors("TEAM_A", "TEAM_B", logos)
+  dist <- color_distance(result$home_color, result$away_color)
+  expect_true(dist >= 25)
 })
 
 test_that("load_logos includes team_color2", {
   skip_if_not_installed("nflfastR")
   logos <- load_logos()
   expect_true("team_color2" %in% names(logos))
+})
+
+test_that("color clump threshold catches known identical-color pairs", {
+  logos <- make_mock_logos()
+  # Simulate identical primary colors (like DAL/DEN/NE/SEA/TEN all being #002244)
+  logos$team_color[logos$team_abbr == "KC"] <- "#002244"
+  logos$team_color[logos$team_abbr == "BAL"] <- "#002244"
+
+  result <- resolve_team_colors("KC", "BAL", logos)
+  dist <- color_distance(result$home_color, result$away_color)
+  expect_true(dist >= 25)
+})
+
+test_that("color clump threshold does not trigger for clearly distinct colors", {
+  logos <- make_mock_logos()
+  # KC (#E31837 red) vs BAL (#241773 purple) - very different
+  result <- resolve_team_colors("KC", "BAL", logos)
+  expect_equal(result$away_color, "#241773")
+})
+
+test_that("secondary color always resolves clumping for real NFL teams", {
+  skip_if_not_installed("nflfastR")
+  library(dplyr)
+
+  real_teams <- c("ARI","ATL","BAL","BUF","CAR","CHI","CIN","CLE","DAL","DEN",
+                  "DET","GB","HOU","IND","JAX","KC","LAC","LAR","LV","MIA",
+                  "MIN","NE","NO","NYG","NYJ","PHI","PIT","SEA","SF","TB","TEN","WAS")
+
+  logos <- nflfastR::teams_colors_logos |>
+    filter(team_abbr %in% real_teams) |>
+    select(team_abbr, team_color, team_color2)
+
+  for (i in seq_along(real_teams)) {
+    for (j in seq_along(real_teams)) {
+      if (i >= j) next
+      t1 <- real_teams[i]
+      t2 <- real_teams[j]
+      c1 <- logos$team_color[logos$team_abbr == t1]
+      c2 <- logos$team_color[logos$team_abbr == t2]
+      d <- color_distance(c1, c2)
+
+      if (d < 25) {
+        resolved <- resolve_team_colors(t1, t2, logos)
+        new_dist <- color_distance(resolved$home_color, resolved$away_color)
+        expect_true(new_dist >= 25,
+          info = paste0(t1, " vs ", t2, " (dist=", round(d,1),
+          "): resolved colors still clumped at dist=", round(new_dist,1)))
+      }
+    }
+  }
 })
 
 test_that("generate_synopsis produces a character string", {

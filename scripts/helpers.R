@@ -130,17 +130,40 @@ resolve_team_colors <- function(home_team, away_team, logos, threshold = 25) {
   home_color <- logos$team_color[logos$team_abbr == home_team]
   away_color <- logos$team_color[logos$team_abbr == away_team]
   away_secondary <- logos$team_color2[logos$team_abbr == away_team]
+  home_secondary <- logos$team_color2[logos$team_abbr == home_team]
 
-  away_use <- away_color
+  home_use <- if (length(home_color) > 0) home_color else "#333333"
+  away_use <- if (length(away_color) > 0) away_color else "#333333"
+
   if (length(home_color) > 0 && length(away_color) > 0) {
     dist <- color_distance(home_color, away_color)
-    if (!is.na(dist) && dist < threshold && length(away_secondary) > 0 && !is.na(away_secondary)) {
-      away_use <- away_secondary
+    if (!is.na(dist) && dist < threshold) {
+      # Try away secondary first
+      combos <- list(
+        list(h = home_color, a = if (!is.na(away_secondary)) away_secondary else away_color),
+        list(h = if (!is.na(home_secondary)) home_secondary else home_color, a = away_color),
+        list(h = if (!is.na(home_secondary)) home_secondary else home_color,
+             a = if (!is.na(away_secondary)) away_secondary else away_color)
+      )
+
+      best_combo <- NULL
+      best_dist <- -1
+      for (combo in combos) {
+        d <- color_distance(combo$h, combo$a)
+        if (!is.na(d) && d > best_dist) {
+          best_dist <- d
+          best_combo <- combo
+        }
+      }
+
+      if (!is.null(best_combo) && best_dist >= threshold) {
+        home_use <- best_combo$h
+        away_use <- best_combo$a
+      } else if (!is.na(away_secondary)) {
+        away_use <- away_secondary
+      }
     }
   }
 
-  list(
-    home_color = if (length(home_color) > 0) home_color else "#333333",
-    away_color = away_use
-  )
+  list(home_color = home_use, away_color = away_use)
 }
