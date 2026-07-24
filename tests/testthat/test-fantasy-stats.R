@@ -244,6 +244,101 @@ test_that("plot_rb_workload handles game with all rushes from one team", {
   expect_s3_class(p, "ggplot")
 })
 
+test_that("add_touch_labels positions home above and away below", {
+  home_touches <- tibble(
+    game_seconds_remaining = c(3000, 2000),
+    vegas_home_wp = c(0.6, 0.55),
+    player = c("Home RB1", "Home RB2"),
+    posteam = c("BAL", "BAL"),
+    touch_type = c("Rush", "Rush")
+  )
+  away_touches <- tibble(
+    game_seconds_remaining = c(2500, 1500),
+    vegas_home_wp = c(0.45, 0.4),
+    player = c("Away RB1", "Away RB2"),
+    posteam = c("KC", "KC"),
+    touch_type = c("Rush", "Rush")
+  )
+  all_touches <- bind_rows(home_touches, away_touches)
+  logos <- make_mock_logos()
+  base <- ggplot() + geom_point(aes(x = 1, y = 1))
+
+  p <- add_touch_labels(base, all_touches, logos, home_team = "BAL")
+
+  built <- ggplot_build(p)
+  label_layers <- built$data[sapply(built$data, function(d) "label" %in% names(d))]
+
+  expect_equal(length(label_layers), 2)
+
+  home_players <- label_layers[[1]]$label
+  away_players <- label_layers[[2]]$label
+
+  expect_true(all(c("Home RB1", "Home RB2") %in% home_players))
+  expect_true(all(c("Away RB1", "Away RB2") %in% away_players))
+  expect_equal(length(label_layers[[1]]$y), 2)
+  expect_equal(length(label_layers[[2]]$y), 2)
+})
+
+test_that("add_touch_labels labels all touches, not just first per player", {
+  touches <- tibble(
+    game_seconds_remaining = c(3000, 2000, 1000),
+    vegas_home_wp = c(0.6, 0.55, 0.5),
+    player = c("RB1", "RB1", "RB1"),
+    posteam = c("BAL", "BAL", "BAL"),
+    touch_type = c("Rush", "Rush", "Rush")
+  )
+  logos <- make_mock_logos()
+  base <- ggplot() + geom_point(aes(x = 1, y = 1))
+
+  p <- add_touch_labels(base, touches, logos, home_team = "BAL")
+
+  built <- ggplot_build(p)
+  label_layers <- built$data[sapply(built$data, function(d) "label" %in% names(d))]
+
+  expect_equal(length(label_layers), 1)
+  expect_equal(nrow(label_layers[[1]]), 3)
+})
+
+test_that("add_touch_labels works with no home touches", {
+  away_touches <- tibble(
+    game_seconds_remaining = c(2500, 1500),
+    vegas_home_wp = c(0.45, 0.4),
+    player = c("Away RB1", "Away RB2"),
+    posteam = c("KC", "KC"),
+    touch_type = c("Rush", "Rush")
+  )
+  logos <- make_mock_logos()
+  base <- ggplot() + geom_point(aes(x = 1, y = 1))
+
+  p <- add_touch_labels(base, away_touches, logos, home_team = "BAL")
+
+  built <- ggplot_build(p)
+  label_layers <- built$data[sapply(built$data, function(d) "label" %in% names(d))]
+
+  expect_equal(length(label_layers), 1)
+  expect_true(all(c("Away RB1", "Away RB2") %in% label_layers[[1]]$label))
+})
+
+test_that("add_touch_labels works with no away touches", {
+  home_touches <- tibble(
+    game_seconds_remaining = c(3000, 2000),
+    vegas_home_wp = c(0.6, 0.55),
+    player = c("Home RB1", "Home RB2"),
+    posteam = c("BAL", "BAL"),
+    touch_type = c("Rush", "Rush")
+  )
+  logos <- make_mock_logos()
+  base <- ggplot() + geom_point(aes(x = 1, y = 1))
+
+  p <- add_touch_labels(base, home_touches, logos, home_team = "BAL")
+
+  built <- ggplot_build(p)
+  label_layers <- built$data[sapply(built$data, function(d) "label" %in% names(d))]
+
+  expect_equal(length(label_layers), 1)
+  expect_true(all(c("Home RB1", "Home RB2") %in% label_layers[[1]]$label))
+})
+
 test_that("plot_wrte_targets handles game with no targets", {
   load_logos_orig <- load_logos
   load_logos <<- function() make_mock_logos()
