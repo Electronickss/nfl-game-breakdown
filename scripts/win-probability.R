@@ -65,7 +65,7 @@ main <- function(args = commandArgs(trailingOnly = TRUE)) {
     game_ids <- game_ids[game_ids %in% game_filter]
   }
   if (!is.null(week_filter) && nchar(week_filter) > 0) {
-    week_games <- pbp_data |> filter(week == as.integer(week_filter)) |> pull(game_id) |> unique()
+    week_games <- pbp_data |> filter(week == as.integer(week_filter)[1]) |> pull(game_id) |> unique()
     game_ids <- game_ids[game_ids %in% week_games]
   }
   if (!is.null(team_filter) && nchar(team_filter) > 0) {
