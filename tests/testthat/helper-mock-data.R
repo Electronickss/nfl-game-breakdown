@@ -65,6 +65,20 @@ make_mock_game <- function(
   )
 }
 
+make_mock_rosters <- function() {
+  tribble(
+    ~full_name, ~position, ~team,
+    "Test RB", "RB", "BAL",
+    "Test RB", "RB", "KC",
+    "WR1", "WR", "BAL",
+    "WR2", "WR", "BAL",
+    "WR3", "WR", "KC",
+    "TE1", "TE", "BAL",
+    "Test QB", "QB", "BAL",
+    "Test QB", "QB", "KC"
+  )
+}
+
 make_mock_logos <- function() {
   tribble(
     ~team_abbr, ~team_logo_espn, ~team_color, ~team_color2,

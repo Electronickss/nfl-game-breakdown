@@ -287,6 +287,11 @@ plot_rb_workload <- function(pbp, week, year, game_id = NULL) {
   home_team <- game$home_team[1]
   away_team <- game$away_team[1]
   logos <- load_logos()
+  rosters <- load_rosters(year)
+  rb_positions <- c("RB", "FB")
+  rb_names <- rosters |>
+    filter(position %in% rb_positions, team %in% c(home_team, away_team)) |>
+    pull(full_name)
 
   resolved <- resolve_team_colors(home_team, away_team, logos)
   wp <- build_wp_segments(game, logos)
@@ -297,22 +302,22 @@ plot_rb_workload <- function(pbp, week, year, game_id = NULL) {
   )
 
   rb_rushes <- game |>
-    filter(rush == 1, !is.na(rusher_player_name)) |>
+    filter(rush == 1, !is.na(rusher_player_name), rusher_player_name %in% rb_names) |>
     mutate(touch_type = "Rush", player = rusher_player_name) |>
     select(game_seconds_remaining, vegas_home_wp, player, posteam, touch_type)
 
   rb_targets <- game |>
-    filter(pass == 1, !is.na(receiver_player_name), rush_attempt == 1) |>
+    filter(pass == 1, !is.na(receiver_player_name), rush_attempt == 1, receiver_player_name %in% rb_names) |>
     mutate(touch_type = "Target", player = receiver_player_name) |>
     select(game_seconds_remaining, vegas_home_wp, player, posteam, touch_type)
 
   rb_fumbles <- game |>
-    filter(fumble == 1, !is.na(fumbled_1_player_name)) |>
+    filter(fumble == 1, !is.na(fumbled_1_player_name), fumbled_1_player_name %in% rb_names) |>
     mutate(touch_type = "Fumble", player = fumbled_1_player_name) |>
     select(game_seconds_remaining, vegas_home_wp, player, posteam, touch_type)
 
   rb_scores <- game |>
-    filter(!is.na(td_player_name)) |>
+    filter(!is.na(td_player_name), td_player_name %in% rb_names) |>
     mutate(touch_type = "Score", player = td_player_name) |>
     select(game_seconds_remaining, vegas_home_wp, player, posteam, touch_type)
 
@@ -391,6 +396,11 @@ plot_wrte_targets <- function(pbp, week, year, game_id = NULL) {
   home_team <- game$home_team[1]
   away_team <- game$away_team[1]
   logos <- load_logos()
+  rosters <- load_rosters(year)
+  wrte_positions <- c("WR", "TE")
+  wrte_names <- rosters |>
+    filter(position %in% wrte_positions, team %in% c(home_team, away_team)) |>
+    pull(full_name)
 
   resolved <- resolve_team_colors(home_team, away_team, logos)
   wp <- build_wp_segments(game, logos)
@@ -401,21 +411,26 @@ plot_wrte_targets <- function(pbp, week, year, game_id = NULL) {
   )
 
   wrte_targets <- game |>
-    filter(pass == 1, !is.na(receiver_player_name)) |>
+    filter(pass == 1, !is.na(receiver_player_name), receiver_player_name %in% wrte_names) |>
     mutate(touch_type = "Target", player = receiver_player_name) |>
     select(game_seconds_remaining, vegas_home_wp, player, posteam, touch_type)
 
+  wrte_rushes <- game |>
+    filter(rush == 1, !is.na(rusher_player_name), rusher_player_name %in% wrte_names) |>
+    mutate(touch_type = "Rush", player = rusher_player_name) |>
+    select(game_seconds_remaining, vegas_home_wp, player, posteam, touch_type)
+
   wrte_fumbles <- game |>
-    filter(fumble == 1, !is.na(fumbled_1_player_name)) |>
+    filter(fumble == 1, !is.na(fumbled_1_player_name), fumbled_1_player_name %in% wrte_names) |>
     mutate(touch_type = "Fumble", player = fumbled_1_player_name) |>
     select(game_seconds_remaining, vegas_home_wp, player, posteam, touch_type)
 
   wrte_scores <- game |>
-    filter(!is.na(td_player_name)) |>
+    filter(!is.na(td_player_name), td_player_name %in% wrte_names) |>
     mutate(touch_type = "Score", player = td_player_name) |>
     select(game_seconds_remaining, vegas_home_wp, player, posteam, touch_type)
 
-  all_touches <- build_touch_data(game, list(wrte_targets, wrte_fumbles, wrte_scores))
+  all_touches <- build_touch_data(game, list(wrte_targets, wrte_rushes, wrte_fumbles, wrte_scores))
 
   top_wrte <- all_touches |>
     filter(touch_type == "Target") |>
@@ -429,8 +444,17 @@ plot_wrte_targets <- function(pbp, week, year, game_id = NULL) {
 
   player_colors <- assign_player_colors(top_wrte$player)
 
-  touch_shapes <- c("Target" = 17, "Fumble" = 18, "Score" = 8)
-  touch_sizes <- c("Target" = 2, "Fumble" = 2.5, "Score" = 3)
+  has_rushes <- any(all_touches$touch_type == "Rush")
+  touch_shapes <- if (has_rushes) {
+    c("Target" = 17, "Rush" = 16, "Fumble" = 18, "Score" = 8)
+  } else {
+    c("Target" = 17, "Fumble" = 18, "Score" = 8)
+  }
+  touch_sizes <- if (has_rushes) {
+    c("Target" = 2, "Rush" = 2, "Fumble" = 2.5, "Score" = 3)
+  } else {
+    c("Target" = 2, "Fumble" = 2.5, "Score" = 3)
+  }
 
   week_label <- format_week_label(week)
   game_title <- glue("{away_team} at {home_team} - {week_label}, {year}")
